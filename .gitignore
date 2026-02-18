@@ -1,0 +1,5 @@
+.env
+.vscode/
+tmp/
+out/
+*.log
