@@ -1,0 +1,330 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck source=../lib/env.sh
+source "$ROOT_DIR/lib/env.sh"
+# shellcheck source=../lib/fetch.sh
+source "$ROOT_DIR/lib/fetch.sh"
+# shellcheck source=../lib/ocr.sh
+source "$ROOT_DIR/lib/ocr.sh"
+# shellcheck source=../lib/chunk.sh
+source "$ROOT_DIR/lib/chunk.sh"
+# shellcheck source=../lib/embed.sh
+source "$ROOT_DIR/lib/embed.sh"
+# shellcheck source=../lib/relevance.sh
+source "$ROOT_DIR/lib/relevance.sh"
+# shellcheck source=../lib/query.sh
+source "$ROOT_DIR/lib/query.sh"
+
+usage() {
+  cat <<'EOF'
+ingo - shell runtime for Upstash Vector (ingest + query)
+
+Usage:
+  ingo doctor
+  ingo fetch [--url URL] [--dir DIR]
+  ingo ocr [--dir DIR]
+  ingo chunk [--strict|--no-strict]
+  ingo embed
+  ingo cleanup
+  ingo run [--url URL] [--dir DIR] [--strict|--no-strict]
+  ingo query "<pregunta>" [--top-k N]
+EOF
+}
+
+doctor() {
+  ingo_load_env
+  ingo_require_bin curl
+  ingo_require_bin jq
+  ingo_require_env
+  if [ "$INGO_ROLE" != "query" ]; then
+    ingo_require_bin tesseract
+    ingo_require_bin awk
+    ingo_require_bin grep
+  fi
+  echo "ok"
+}
+
+cmd_fetch() {
+  ingo_load_env
+  ingo_require_ingest_enabled
+  ingo_prepare_dirs
+  ingo_require_bin curl
+
+  local url=""
+  local dir=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --url)
+        [ "$#" -ge 2 ] || { echo "missing value for --url" >&2; return 2; }
+        url="$2"
+        shift 2
+        ;;
+      --dir)
+        [ "$#" -ge 2 ] || { echo "missing value for --dir" >&2; return 2; }
+        dir="$2"
+        shift 2
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  if [ -n "$dir" ]; then
+    INGO_INBOX="$dir"
+  fi
+
+  if [ -n "$url" ]; then
+    local file
+    file="$(ingo_fetch_url "$url" "$INGO_INBOX")"
+    echo "fetched: $file"
+  fi
+
+  ingo_list_pdfs "$INGO_INBOX"
+}
+
+cmd_ocr() {
+  ingo_load_env
+  ingo_require_ingest_enabled
+  ingo_prepare_dirs
+  ingo_require_bin tesseract
+  local dir=""
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --dir)
+        [ "$#" -ge 2 ] || { echo "missing value for --dir" >&2; return 2; }
+        dir="$2"
+        shift 2
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  if [ -n "$dir" ]; then
+    INGO_INBOX="$dir"
+  fi
+
+  local pdf txt
+  while IFS= read -r pdf; do
+    [ -n "$pdf" ] || continue
+    txt="$(ingo_ocr_pdf "$pdf" "$ROOT_DIR/$INGO_RAW_DIR" "$INGO_LANG")"
+    echo "ocr: $pdf -> $txt"
+  done < <(ingo_list_pdfs "$INGO_INBOX")
+}
+
+cmd_chunk() {
+  ingo_load_env
+  ingo_require_ingest_enabled
+  ingo_prepare_dirs
+  ingo_require_bin awk
+  ingo_require_bin grep
+
+  local strict="$INGO_RELEVANCE_MODE"
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --strict)
+        strict="strict"
+        shift
+        ;;
+      --no-strict)
+        strict="off"
+        shift
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  local txt base out rejected
+  find "$ROOT_DIR/$INGO_RAW_DIR" -maxdepth 1 -type f -name '*.txt' | sort | while IFS= read -r txt; do
+    if [ "$strict" = "strict" ] && ! ingo_is_relevant "$txt" "$INGO_MIN_TERM_MATCHES" "$INGO_RELEVANCE_TERMS"; then
+      rejected="$ROOT_DIR/$INGO_REJECTED_DIR/$(basename "$txt")"
+      mv "$txt" "$rejected"
+      echo "rejected: $txt -> $rejected"
+      continue
+    fi
+
+    base="$(basename "$txt" .txt)"
+    out="$ROOT_DIR/$INGO_CHUNK_DIR/$base.jsonl"
+    ingo_chunk_txt "$txt" "$out" "$INGO_CHUNK_SIZE" "$INGO_CHUNK_OVERLAP"
+    echo "chunk: $txt -> $out"
+  done
+}
+
+cmd_embed() {
+  ingo_load_env
+  ingo_require_ingest_enabled
+  ingo_prepare_dirs
+  ingo_require_bin curl
+  ingo_require_bin jq
+  ingo_require_env
+
+  local jsonl count
+  find "$ROOT_DIR/$INGO_CHUNK_DIR" -maxdepth 1 -type f -name '*.jsonl' | sort | while IFS= read -r jsonl; do
+    count="$(ingo_embed_jsonl "$jsonl" "$INGO_NAMESPACE")"
+    echo "embed: $jsonl -> $count vectors"
+  done
+}
+
+cmd_cleanup() {
+  ingo_load_env
+  ingo_require_ingest_enabled
+  if [ "$INGO_CLEANUP_TEXT" = "1" ]; then
+    find "$ROOT_DIR/$INGO_RAW_DIR" -maxdepth 1 -type f -name '*.txt' -delete
+    find "$ROOT_DIR/$INGO_CHUNK_DIR" -maxdepth 1 -type f -name '*.jsonl' -delete
+    echo "cleanup: removed OCR and chunk intermediates"
+  else
+    echo "cleanup skipped: INGO_CLEANUP_TEXT=$INGO_CLEANUP_TEXT"
+  fi
+}
+
+cmd_run() {
+  ingo_load_env
+  ingo_require_ingest_enabled
+
+  local url=""
+  local dir=""
+  local strict_flag=""
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --url)
+        [ "$#" -ge 2 ] || { echo "missing value for --url" >&2; return 2; }
+        url="$2"
+        shift 2
+        ;;
+      --dir)
+        [ "$#" -ge 2 ] || { echo "missing value for --dir" >&2; return 2; }
+        dir="$2"
+        shift 2
+        ;;
+      --strict|--no-strict)
+        strict_flag="$1"
+        shift
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  if [ -n "$url" ] && [ -n "$dir" ]; then
+    cmd_fetch --url "$url" --dir "$dir"
+  elif [ -n "$url" ]; then
+    cmd_fetch --url "$url"
+  elif [ -n "$dir" ]; then
+    cmd_fetch --dir "$dir"
+  else
+    cmd_fetch
+  fi
+
+  if [ -n "$dir" ]; then
+    cmd_ocr --dir "$dir"
+  else
+    cmd_ocr
+  fi
+
+  if [ -n "$strict_flag" ]; then
+    cmd_chunk "$strict_flag"
+  else
+    cmd_chunk
+  fi
+  cmd_embed
+  cmd_cleanup
+}
+
+cmd_query() {
+  if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
+    echo "usage: ingo query \"<pregunta>\" [--top-k N]"
+    return 0
+  fi
+
+  ingo_load_env
+  ingo_require_bin curl
+  ingo_require_bin jq
+  ingo_require_env
+
+  local question="${1:-}"
+  shift || true
+  if [ -z "$question" ]; then
+    echo "missing question" >&2
+    return 2
+  fi
+
+  local top_k=8
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --top-k)
+        [ "$#" -ge 2 ] || { echo "missing value for --top-k" >&2; return 2; }
+        top_k="$2"
+        shift 2
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  ingo_query_text "$question" "$top_k" "$INGO_NAMESPACE"
+}
+
+main() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    doctor)
+      shift
+      doctor "$@"
+      ;;
+    fetch)
+      shift
+      cmd_fetch "$@"
+      ;;
+    ocr)
+      shift
+      cmd_ocr "$@"
+      ;;
+    chunk)
+      shift
+      cmd_chunk "$@"
+      ;;
+    embed)
+      shift
+      cmd_embed "$@"
+      ;;
+    cleanup)
+      shift
+      cmd_cleanup "$@"
+      ;;
+    run)
+      shift
+      cmd_run "$@"
+      ;;
+    query)
+      shift
+      cmd_query "$@"
+      ;;
+    ""|-h|--help|help)
+      usage
+      ;;
+    *)
+      echo "unknown command: $cmd" >&2
+      usage >&2
+      return 2
+      ;;
+  esac
+}
+
+main "$@"
