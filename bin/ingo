@@ -44,6 +44,8 @@ doctor() {
     ingo_require_bin tesseract
     ingo_require_bin awk
     ingo_require_bin grep
+    ingo_require_bin pdftotext
+    ingo_require_bin pdftoppm
   fi
   echo "ok"
 }
@@ -93,6 +95,8 @@ cmd_ocr() {
   ingo_require_ingest_enabled
   ingo_prepare_dirs
   ingo_require_bin tesseract
+  ingo_require_bin pdftotext
+  ingo_require_bin pdftoppm
   local dir=""
 
   while [ "$#" -gt 0 ]; do
@@ -113,12 +117,21 @@ cmd_ocr() {
     INGO_INBOX="$dir"
   fi
 
-  local pdf txt
+  local pdf txt pdfs
+  pdfs="$(ingo_list_pdfs "$INGO_INBOX")"
+  if [ -z "$pdfs" ]; then
+    echo "no PDFs found in INGO_INBOX=$INGO_INBOX" >&2
+    return 2
+  fi
+
   while IFS= read -r pdf; do
     [ -n "$pdf" ] || continue
-    txt="$(ingo_ocr_pdf "$pdf" "$ROOT_DIR/$INGO_RAW_DIR" "$INGO_LANG")"
+    if ! txt="$(ingo_ocr_pdf "$pdf" "$ROOT_DIR/$INGO_RAW_DIR" "$INGO_LANG" "$ROOT_DIR")"; then
+      echo "ocr failed: $pdf" >&2
+      return 5
+    fi
     echo "ocr: $pdf -> $txt"
-  done < <(ingo_list_pdfs "$INGO_INBOX")
+  done <<< "$pdfs"
 }
 
 cmd_chunk() {
@@ -148,6 +161,18 @@ cmd_chunk() {
 
   local txt base out rejected
   find "$ROOT_DIR/$INGO_RAW_DIR" -maxdepth 1 -type f -name '*.txt' | sort | while IFS= read -r txt; do
+    if [ ! -s "$txt" ]; then
+      rejected="$ROOT_DIR/$INGO_REJECTED_DIR/$(basename "$txt")"
+      mv "$txt" "$rejected"
+      echo "rejected-empty: $txt -> $rejected"
+      continue
+    fi
+    base="$(basename "$txt" .txt)"
+    out="$ROOT_DIR/$INGO_CHUNK_DIR/$base.jsonl"
+    if [ -s "$out" ]; then
+      echo "chunk-skip: $txt -> $out"
+      continue
+    fi
     if [ "$strict" = "strict" ] && ! ingo_is_relevant "$txt" "$INGO_MIN_TERM_MATCHES" "$INGO_RELEVANCE_TERMS"; then
       rejected="$ROOT_DIR/$INGO_REJECTED_DIR/$(basename "$txt")"
       mv "$txt" "$rejected"
@@ -155,8 +180,6 @@ cmd_chunk() {
       continue
     fi
 
-    base="$(basename "$txt" .txt)"
-    out="$ROOT_DIR/$INGO_CHUNK_DIR/$base.jsonl"
     ingo_chunk_txt "$txt" "$out" "$INGO_CHUNK_SIZE" "$INGO_CHUNK_OVERLAP"
     echo "chunk: $txt -> $out"
   done
@@ -172,7 +195,12 @@ cmd_embed() {
 
   local jsonl count
   find "$ROOT_DIR/$INGO_CHUNK_DIR" -maxdepth 1 -type f -name '*.jsonl' | sort | while IFS= read -r jsonl; do
-    count="$(ingo_embed_jsonl "$jsonl" "$INGO_NAMESPACE")"
+    if [ -s "${jsonl}.embedded" ]; then
+      echo "embed-skip: $jsonl"
+      continue
+    fi
+    count="$(ingo_embed_jsonl "$jsonl" "$INGO_NAMESPACE" "$ROOT_DIR/$INGO_RAW_DIR")"
+    printf "%s\n" "$count" > "${jsonl}.embedded"
     echo "embed: $jsonl -> $count vectors"
   done
 }
