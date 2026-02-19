@@ -8,7 +8,7 @@ ingo_chunk_txt() {
   local chunk_size="$3"
   local overlap="$4"
 
-  awk \
+  LC_ALL=C awk \
     -v chunk_size="$chunk_size" \
     -v overlap="$overlap" \
     -v source="$(basename "$txt")" \
@@ -17,8 +17,11 @@ ingo_chunk_txt() {
       t = s
       gsub(/\\/,"\\\\",t)
       gsub(/"/,"\\\"",t)
+      gsub(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/, "", t)
       gsub(/\r/,"",t)
       gsub(/\t/," ",t)
+      gsub(/\302\240/," ",t)
+      gsub(/[ ]+/," ",t)
       gsub(/\n/,"\\n",t)
       return t
     }
@@ -42,11 +45,12 @@ ingo_chunk_txt() {
 
     {
       line = $0
+      line_lc = tolower(line)
 
-      if (match(line, /^[[:space:]]*(SECCION|Seccion|SECCIÓN|Sección|CAPITULO|Capitulo|CAPÍTULO|Capítulo)[[:space:]]+/, m)) {
+      if (line_lc ~ /^[[:space:]]*(seccion|capitulo)[[:space:]]+/) {
         section = line
       }
-      if (match(line, /^[[:space:]]*(ARTICULO|Articulo|ARTÍCULO|Artículo)[[:space:]]+[0-9A-Za-z.-]+/, m)) {
+      if (line_lc ~ /^[[:space:]]*(articulo)[[:space:]]+[0-9A-Za-z.-]+/) {
         article = line
       }
 
