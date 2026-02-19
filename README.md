@@ -24,6 +24,7 @@ Ingestion stages:
 - jq
 - awk
 - tesseract (with `spa` language data)
+- poppler (`pdftotext`, `pdftoppm`)
 
 ## Setup
 
@@ -39,8 +40,8 @@ Set required values in `.env`:
 
 ```bash
 bin/ingo doctor
-bin/ingo fetch --dir ~/ingest
-bin/ingo ocr --dir ~/ingest
+bin/ingo fetch --dir data/ingest
+bin/ingo ocr --dir data/ingest
 bin/ingo chunk --strict
 bin/ingo embed
 bin/ingo cleanup
@@ -49,7 +50,7 @@ bin/ingo cleanup
 Single command:
 
 ```bash
-bin/ingo run --dir ~/ingest --strict
+bin/ingo run --dir data/ingest --strict
 ```
 
 Download + ingest in one shot:
@@ -70,7 +71,7 @@ Manual drop flow:
 2. Run:
 
 ```bash
-bin/ingo run --strict
+bin/ingo run --dir data/ingest --strict
 ```
 
 ## Notes
