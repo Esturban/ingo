@@ -1,0 +1,54 @@
+name: improve feature to dev
+
+on:
+  push:
+    branches-ignore:
+      - master
+      - main
+      - dev
+  workflow_dispatch:
+
+jobs:
+  pull-request:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check if should create PR
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_BRANCH="${{ github.ref_name }}"
+          echo "current_branch=$CURRENT_BRANCH" >> "$GITHUB_OUTPUT"
+
+          if [ "$CURRENT_BRANCH" = "master" ] || [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "dev" ]; then
+            echo "skip_pr=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_pr=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create pull request
+        if: steps.check.outputs.skip_pr == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTO_PR_TOKEN: ${{ secrets.AUTO_PR_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${AUTO_PR_TOKEN:-}" ]; then
+            export GH_TOKEN="$AUTO_PR_TOKEN"
+          fi
+
+          CURRENT_BRANCH="${{ steps.check.outputs.current_branch }}"
+          BODY="Automated handoff PR from $CURRENT_BRANCH to dev"
+
+          EXISTING_PR=$(gh pr list --head "$CURRENT_BRANCH" --base "dev" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "Pulling $CURRENT_BRANCH into dev" --body "$BODY"
+          else
+            gh pr create --title "Pulling $CURRENT_BRANCH into dev" --body "$BODY" --base "dev" --head "$CURRENT_BRANCH"
+          fi
