@@ -4,7 +4,6 @@ tmp/
 out/
 *.log
 data
-data/
 .DS_Store
 **/.DS_Store
 .self-improve/
