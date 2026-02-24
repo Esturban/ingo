@@ -1,0 +1,160 @@
+{
+  "steps": [
+    {
+      "id": "S01",
+      "text": "Inspect `cmd_query` parsing in `bin/ingo` and define constants for bounds (`TOP_K_MIN=1`, `TOP_K_MAX=50`) local to query command.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S02",
+      "text": "Add a small validator helper in `bin/ingo` (or inline guard) that:",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S03",
+      "text": "Rejects non-digits (`foo`, `1.5`, `-1`, empty).",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S04",
+      "text": "Rejects `< 1`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S05",
+      "text": "Clamps values `> 50` down to `50` (if clamping path is chosen).",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S06",
+      "text": "Keep failure mode consistent:",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S07",
+      "text": "Print clear message to `stderr` (example: `invalid --top-k: must be an integer between 1 and 50`).",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S08",
+      "text": "Return `2`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S09",
+      "text": "Update `usage()` and `cmd_query --help` text to explicitly show accepted format/range.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S10",
+      "text": "Update `README.md` query usage/help text to mirror CLI behavior.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S11",
+      "text": "Run syntax and behavior checks (including exit codes).",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S12",
+      "text": "Verify a valid call sends numeric `topK` in JSON payload via a mocked `curl` capture.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    }
+  ]
+}

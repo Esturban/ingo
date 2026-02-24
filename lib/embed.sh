@@ -59,7 +59,7 @@ ingo_upsert_line() {
     }'
   )"
 
-  response="$(curl -sS -w "\n%{http_code}" \
+  response="$(ingo_http_curl -sS -w "\n%{http_code}" \
     -X POST "$(ingo_upstash_base_url)/upsert-data" \
     -H "Authorization: Bearer ${UPSTASH_VECTOR_REST_TOKEN}" \
     -H "Content-Type: application/json" \

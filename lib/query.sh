@@ -14,7 +14,7 @@ ingo_query_text() {
     --arg namespace "$namespace" \
     '{data: $data, topK: $top_k, namespace: $namespace, includeMetadata: true, includeData: true}')"
 
-  response="$(curl -sS -w "\n%{http_code}" \
+  response="$(ingo_http_curl -sS -w "\n%{http_code}" \
     -X POST "${UPSTASH_VECTOR_REST_URL%/}/query-data" \
     -H "Authorization: Bearer ${UPSTASH_VECTOR_REST_TOKEN}" \
     -H "Content-Type: application/json" \

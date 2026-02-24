@@ -1,0 +1,10 @@
+{
+  "mode": "strict",
+  "allow_commit": false,
+  "allow_pr": false,
+  "allow_issue_close": false,
+  "required_labels": [],
+  "failure_reasons": [
+    "missing expected file touches"
+  ]
+}

@@ -1,0 +1,2 @@
+Tackling some of the main issues already in the main GitHub repo would be ideal at this point.
+So grabbing a few around robust HTTP headers and information, and stuff like that. Let's collect some of those issues and tackle them in batches. Ideally, finding a few relevant ones together to go in and hammer it out.

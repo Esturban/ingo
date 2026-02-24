@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "index": 1,
+      "command": "bin/ingo doctor",
+      "exit_code": 0,
+      "status": "PASS",
+      "log": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-214709-issue-15/verify_cmd_1.log"
+    },
+    {
+      "index": 2,
+      "command": "shellcheck -x bin/ingo lib/*.sh",
+      "exit_code": 1,
+      "status": "FAIL",
+      "log": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-214709-issue-15/verify_cmd_2.log"
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "run_id": "20260222-215525-issue-15",
+  "repo_id": "ingo",
+  "repo_path": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo",
+  "github_repo": "Esturban/ingo",
+  "issue_number": 15,
+  "branch": "feature/issue-15-validate-and-clamp-top-k-input-before-calling-qu",
+  "pr_base_branch": "dev",
+  "device_id": "EVA@virtual-ball",
+  "model": "gpt-5.3-codex",
+  "validation_mode": "strict",
+  "objective_change_policy": "propose_then_approve",
+  "environment_profile_path": ".self-improve/environment.yaml",
+  "reasoning": {
+    "plan": "medium",
+    "implementation": "medium",
+    "review": "medium"
+  },
+  "doctor": {
+    "enabled": true,
+    "command": "if command -v shfmt >/dev/null 2>&1; then shfmt -w bin/ingo lib/*.sh; fi",
+    "max_repair_iterations": 1
+  },
+  "strict_commit_guard": true,
+  "validation": {
+    "full_pass": false,
+    "allow_commit": false,
+    "allow_pr": false,
+    "allow_issue_close": false
+  },
+  "created_at": "2026-02-22T21:58:02Z"
+}
