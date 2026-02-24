@@ -80,4 +80,6 @@ bin/ingo run --dir data/ingest --strict
 - For minimal disk usage, set `INGO_CLEANUP_TEXT=1` (default) so OCR/chunk files are deleted after embed.
 - Relevance gate defaults to strict mode and rejects low-signal text into `data/rejected/` before embedding.
 - Tune relevance using `INGO_RELEVANCE_TERMS` and `INGO_MIN_TERM_MATCHES`.
+- HTTP retry defaults are `INGO_HTTP_RETRY_ATTEMPTS=2`, `INGO_HTTP_RETRY_BACKOFF_MIN=1`, `INGO_HTTP_RETRY_BACKOFF_MAX=8`, and `INGO_HTTP_RETRY_BACKOFF_FACTOR=2`.
+- Legacy aliases `INGO_HTTP_RETRY_MAX` and `INGO_HTTP_RETRY_BACKOFF` remain supported and map to attempts/min-backoff.
 - For this device, set `INGO_ROLE="query"` to disable all ingest commands and keep only query behavior.
