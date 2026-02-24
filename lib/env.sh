@@ -58,6 +58,24 @@ ingo_require_bin() {
   fi
 }
 
+ingo_require_tesseract_lang() {
+  local lang="$1"
+  local list line
+  if ! list="$(tesseract --list-langs 2>/dev/null)"; then
+    echo "failed to list tesseract languages via 'tesseract --list-langs'" >&2
+    return 5
+  fi
+
+  while IFS= read -r line; do
+    if [ "$line" = "$lang" ]; then
+      return 0
+    fi
+  done <<< "$list"
+
+  echo "missing OCR language data for INGO_LANG=$lang (not found in 'tesseract --list-langs')" >&2
+  return 5
+}
+
 ingo_require_env() {
   local missing=0
   for key in UPSTASH_VECTOR_REST_URL UPSTASH_VECTOR_REST_TOKEN; do
