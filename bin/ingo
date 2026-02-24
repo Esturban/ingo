@@ -48,6 +48,7 @@ doctor() {
     ingo_require_bin grep
     ingo_require_bin pdftotext
     ingo_require_bin pdftoppm
+    ingo_require_tesseract_lang "$INGO_LANG"
   fi
   echo "ok"
 }

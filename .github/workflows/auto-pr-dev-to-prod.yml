@@ -1,0 +1,37 @@
+name: improve dev to master
+
+on:
+  push:
+    branches:
+      - dev
+  workflow_dispatch:
+
+jobs:
+  pull-request:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUTO_PR_TOKEN: ${{ secrets.AUTO_PR_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -n "${AUTO_PR_TOKEN:-}" ]; then
+            export GH_TOKEN="$AUTO_PR_TOKEN"
+          fi
+
+          CURRENT_BRANCH="${{ github.ref_name }}"
+          BODY="Automated promotion PR from $CURRENT_BRANCH to master"
+
+          EXISTING_PR=$(gh pr list --head "$CURRENT_BRANCH" --base "master" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "Pulling $CURRENT_BRANCH into production" --body "$BODY"
+          else
+            gh pr create --title "Pulling $CURRENT_BRANCH into production" --body "$BODY" --base "master" --head "$CURRENT_BRANCH"
+          fi
