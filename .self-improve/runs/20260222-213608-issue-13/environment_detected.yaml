@@ -1,0 +1,20 @@
+version: 1
+detected_at: "2026-02-22T21:36:09Z"
+repo_path: "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo"
+runtimes:
+  - "unknown"
+project_shapes:
+  - "generic_repo"
+ci:
+  github_actions: false
+  workflow_count: 0
+deployment_markers:
+  - "none-detected"
+capability_tags:
+  - "shell-cli"
+  - "rag"
+  - "upstash"
+  - "vector"
+  - "agent-runtime"
+notes:
+  - "Runtime auto-detection was inconclusive; refine the environment profile manually."

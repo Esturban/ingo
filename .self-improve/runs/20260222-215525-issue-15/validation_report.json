@@ -1,0 +1,334 @@
+{
+  "generated_at": "2026-02-22T21:58:02Z",
+  "mode": "strict",
+  "full_pass": false,
+  "command_results": [
+    {
+      "index": 1,
+      "command": "bin/ingo doctor",
+      "exit_code": 0,
+      "status": "PASS",
+      "log": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-215525-issue-15/verify_cmd_1.log"
+    },
+    {
+      "index": 2,
+      "command": "shellcheck -S warning -x bin/ingo lib/*.sh",
+      "exit_code": 0,
+      "status": "PASS",
+      "log": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-215525-issue-15/verify_cmd_2.log"
+    }
+  ],
+  "all_commands_passed": true,
+  "changed_files": [
+    ".DS_Store",
+    ".self-improve/.DS_Store",
+    ".self-improve/environment.yaml",
+    ".self-improve/getting_started.md",
+    ".self-improve/repo_assessment.yaml",
+    ".self-improve/runs/.DS_Store",
+    ".self-improve/runs/20260222-213104-issue-13/issue_fetch.stderr",
+    ".self-improve/runs/20260222-213104-issue-13/issue_snapshot.json",
+    ".self-improve/runs/20260222-213104-issue-13/memory_snippet.md",
+    ".self-improve/runs/20260222-213104-issue-13/preflight_sync.json",
+    ".self-improve/runs/20260222-213144-issue-13/issue_fetch.stderr",
+    ".self-improve/runs/20260222-213144-issue-13/issue_snapshot.json",
+    ".self-improve/runs/20260222-213144-issue-13/memory_snippet.md",
+    ".self-improve/runs/20260222-213144-issue-13/plan.md",
+    ".self-improve/runs/20260222-213144-issue-13/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-213144-issue-13/plan_prompt.md",
+    ".self-improve/runs/20260222-213144-issue-13/preflight_sync.json",
+    ".self-improve/runs/20260222-213144-issue-13/run_terminal.json",
+    ".self-improve/runs/20260222-213305-issue-13/environment_backlog.md",
+    ".self-improve/runs/20260222-213305-issue-13/environment_detected.yaml",
+    ".self-improve/runs/20260222-213305-issue-13/impl_prompt.md",
+    ".self-improve/runs/20260222-213305-issue-13/implementation.md",
+    ".self-improve/runs/20260222-213305-issue-13/issue_fetch.stderr",
+    ".self-improve/runs/20260222-213305-issue-13/issue_snapshot.json",
+    ".self-improve/runs/20260222-213305-issue-13/memory_snippet.md",
+    ".self-improve/runs/20260222-213305-issue-13/plan.md",
+    ".self-improve/runs/20260222-213305-issue-13/plan_contract.json",
+    ".self-improve/runs/20260222-213305-issue-13/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-213305-issue-13/plan_prompt.md",
+    ".self-improve/runs/20260222-213305-issue-13/preflight_sync.json",
+    ".self-improve/runs/20260222-213305-issue-13/review.md",
+    ".self-improve/runs/20260222-213305-issue-13/run_terminal.json",
+    ".self-improve/runs/20260222-213305-issue-13/step_coverage.json",
+    ".self-improve/runs/20260222-213305-issue-13/step_matrix.json",
+    ".self-improve/runs/20260222-213305-issue-13/verification_results.json",
+    ".self-improve/runs/20260222-213608-issue-13/environment_backlog.md",
+    ".self-improve/runs/20260222-213608-issue-13/environment_detected.yaml",
+    ".self-improve/runs/20260222-213608-issue-13/issue_fetch.stderr",
+    ".self-improve/runs/20260222-213608-issue-13/issue_snapshot.json",
+    ".self-improve/runs/20260222-213608-issue-13/memory_snippet.md",
+    ".self-improve/runs/20260222-213608-issue-13/preflight_sync.json",
+    ".self-improve/runs/20260222-213608-issue-13/run_terminal.json",
+    ".self-improve/runs/20260222-213620-issue-13/environment_backlog.md",
+    ".self-improve/runs/20260222-213620-issue-13/environment_detected.yaml",
+    ".self-improve/runs/20260222-213620-issue-13/issue_fetch.stderr",
+    ".self-improve/runs/20260222-213620-issue-13/issue_snapshot.json",
+    ".self-improve/runs/20260222-213620-issue-13/memory_snippet.md",
+    ".self-improve/runs/20260222-213620-issue-13/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-213620-issue-13/plan_prompt.md",
+    ".self-improve/runs/20260222-213620-issue-13/preflight_sync.json",
+    ".self-improve/runs/20260222-213902-issue-13/environment_backlog.md",
+    ".self-improve/runs/20260222-213902-issue-13/environment_detected.yaml",
+    ".self-improve/runs/20260222-213902-issue-13/impl_prompt.md",
+    ".self-improve/runs/20260222-213902-issue-13/implementation.md",
+    ".self-improve/runs/20260222-213902-issue-13/issue_fetch.stderr",
+    ".self-improve/runs/20260222-213902-issue-13/issue_snapshot.json",
+    ".self-improve/runs/20260222-213902-issue-13/memory_snippet.md",
+    ".self-improve/runs/20260222-213902-issue-13/plan.md",
+    ".self-improve/runs/20260222-213902-issue-13/plan_contract.json",
+    ".self-improve/runs/20260222-213902-issue-13/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-213902-issue-13/plan_prompt.md",
+    ".self-improve/runs/20260222-213902-issue-13/preflight_sync.json",
+    ".self-improve/runs/20260222-213902-issue-13/review.md",
+    ".self-improve/runs/20260222-213902-issue-13/run_terminal.json",
+    ".self-improve/runs/20260222-213902-issue-13/step_coverage.json",
+    ".self-improve/runs/20260222-213902-issue-13/step_matrix.json",
+    ".self-improve/runs/20260222-213902-issue-13/verification_results.json",
+    ".self-improve/runs/20260222-214432-issue-15/environment_backlog.md",
+    ".self-improve/runs/20260222-214432-issue-15/environment_detected.yaml",
+    ".self-improve/runs/20260222-214432-issue-15/issue_fetch.stderr",
+    ".self-improve/runs/20260222-214432-issue-15/issue_snapshot.json",
+    ".self-improve/runs/20260222-214432-issue-15/memory_snippet.md",
+    ".self-improve/runs/20260222-214432-issue-15/preflight_sync.json",
+    ".self-improve/runs/20260222-214432-issue-15/run_terminal.json",
+    ".self-improve/runs/20260222-214709-issue-15/advisory_decision.json",
+    ".self-improve/runs/20260222-214709-issue-15/doctor_repair.json",
+    ".self-improve/runs/20260222-214709-issue-15/doctor_trigger_source.txt",
+    ".self-improve/runs/20260222-214709-issue-15/environment_backlog.md",
+    ".self-improve/runs/20260222-214709-issue-15/environment_detected.yaml",
+    ".self-improve/runs/20260222-214709-issue-15/impl_prompt.md",
+    ".self-improve/runs/20260222-214709-issue-15/implementation.md",
+    ".self-improve/runs/20260222-214709-issue-15/issue_fetch.stderr",
+    ".self-improve/runs/20260222-214709-issue-15/issue_snapshot.json",
+    ".self-improve/runs/20260222-214709-issue-15/memory_snippet.md",
+    ".self-improve/runs/20260222-214709-issue-15/objective_delta.md",
+    ".self-improve/runs/20260222-214709-issue-15/plan.md",
+    ".self-improve/runs/20260222-214709-issue-15/plan_contract.json",
+    ".self-improve/runs/20260222-214709-issue-15/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-214709-issue-15/plan_prompt.md",
+    ".self-improve/runs/20260222-214709-issue-15/preflight_sync.json",
+    ".self-improve/runs/20260222-214709-issue-15/review.md",
+    ".self-improve/runs/20260222-214709-issue-15/run_manifest.json",
+    ".self-improve/runs/20260222-214709-issue-15/run_terminal.json",
+    ".self-improve/runs/20260222-214709-issue-15/step_coverage.json",
+    ".self-improve/runs/20260222-214709-issue-15/step_matrix.json",
+    ".self-improve/runs/20260222-214709-issue-15/validation_report.json",
+    ".self-improve/runs/20260222-214709-issue-15/validation_report.md",
+    ".self-improve/runs/20260222-214709-issue-15/verification_results.json",
+    ".self-improve/runs/20260222-215131-issue-15/advisory_decision.json",
+    ".self-improve/runs/20260222-215131-issue-15/doctor_repair.json",
+    ".self-improve/runs/20260222-215131-issue-15/environment_backlog.md",
+    ".self-improve/runs/20260222-215131-issue-15/environment_detected.yaml",
+    ".self-improve/runs/20260222-215131-issue-15/impl_prompt.md",
+    ".self-improve/runs/20260222-215131-issue-15/implementation.md",
+    ".self-improve/runs/20260222-215131-issue-15/issue_fetch.stderr",
+    ".self-improve/runs/20260222-215131-issue-15/issue_snapshot.json",
+    ".self-improve/runs/20260222-215131-issue-15/memory_snippet.md",
+    ".self-improve/runs/20260222-215131-issue-15/objective_delta.md",
+    ".self-improve/runs/20260222-215131-issue-15/plan.md",
+    ".self-improve/runs/20260222-215131-issue-15/plan_contract.json",
+    ".self-improve/runs/20260222-215131-issue-15/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-215131-issue-15/plan_prompt.md",
+    ".self-improve/runs/20260222-215131-issue-15/preflight_sync.json",
+    ".self-improve/runs/20260222-215131-issue-15/review.md",
+    ".self-improve/runs/20260222-215131-issue-15/run_terminal.json",
+    ".self-improve/runs/20260222-215131-issue-15/step_coverage.json",
+    ".self-improve/runs/20260222-215131-issue-15/step_matrix.json",
+    ".self-improve/runs/20260222-215131-issue-15/validation_report.json",
+    ".self-improve/runs/20260222-215131-issue-15/validation_report.md",
+    ".self-improve/runs/20260222-215131-issue-15/verification_results.json",
+    ".self-improve/runs/20260222-215525-issue-15/advisory_decision.json",
+    ".self-improve/runs/20260222-215525-issue-15/doctor_repair.json",
+    ".self-improve/runs/20260222-215525-issue-15/doctor_trigger_source.txt",
+    ".self-improve/runs/20260222-215525-issue-15/environment_backlog.md",
+    ".self-improve/runs/20260222-215525-issue-15/environment_detected.yaml",
+    ".self-improve/runs/20260222-215525-issue-15/impl_prompt.md",
+    ".self-improve/runs/20260222-215525-issue-15/implementation.md",
+    ".self-improve/runs/20260222-215525-issue-15/issue_fetch.stderr",
+    ".self-improve/runs/20260222-215525-issue-15/issue_snapshot.json",
+    ".self-improve/runs/20260222-215525-issue-15/memory_snippet.md",
+    ".self-improve/runs/20260222-215525-issue-15/plan.md",
+    ".self-improve/runs/20260222-215525-issue-15/plan_contract.json",
+    ".self-improve/runs/20260222-215525-issue-15/plan_lint_feedback.txt",
+    ".self-improve/runs/20260222-215525-issue-15/plan_prompt.md",
+    ".self-improve/runs/20260222-215525-issue-15/preflight_sync.json",
+    ".self-improve/runs/20260222-215525-issue-15/review.md",
+    ".self-improve/runs/20260222-215525-issue-15/step_coverage.json",
+    ".self-improve/runs/20260222-215525-issue-15/step_matrix.json",
+    ".self-improve/runs/20260222-215525-issue-15/validation_report.json",
+    ".self-improve/runs/20260222-215525-issue-15/validation_report.md",
+    ".self-improve/runs/20260222-215525-issue-15/verification_results.json",
+    "README.md",
+    "bin/ingo"
+  ],
+  "expected_files": [
+    "Add",
+    "README.md",
+    "Update",
+    "bin/ingo"
+  ],
+  "missing_expected_touches": [
+    "Add",
+    "Update"
+  ],
+  "uncovered_steps": [],
+  "step_coverage": [
+    {
+      "id": "S01",
+      "text": "[ ] Confirm current `cmd_query` option parsing path in `bin/ingo` and identify insertion point right after `--top-k` assignment.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S02",
+      "text": "[ ] Implement a small validator in `bin/ingo` (inline or helper) that:",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S03",
+      "text": "[ ] accepts only `^[0-9]+$`",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S04",
+      "text": "[ ] rejects `0`",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S05",
+      "text": "[ ] rejects negatives/decimals/non-numeric values",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S06",
+      "text": "[ ] returns exit code `2` with a clear message.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S07",
+      "text": "[ ] Add clamp logic to cap `top_k` to `50` (or chosen upper bound), keeping default `8`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S08",
+      "text": "[ ] Update usage/help strings in `usage()` and `cmd_query --help` to document valid format/range (e.g. `1-50`).",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S09",
+      "text": "[ ] Run static/smoke checks and record outputs for the issue acceptance cases.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    }
+  ],
+  "review_summary": {
+    "total_findings": 0,
+    "has_findings": false,
+    "severity_counts": {
+      "p0": 0,
+      "p1": 0,
+      "p2": 0,
+      "p3": 0
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "plan_file": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-215821-issue-15/plan.md",
+  "valid": true,
+  "sections": {
+    "objective": {
+      "present": true,
+      "text": "- Propose a minimal, repo-specific fix for issue `#15` that validates `--top-k` in `bin/ingo` before query execution, fails fast with exit code `2` on invalid input, and documents the valid range/format."
+    },
+    "scope_in": {
+      "present": true,
+      "text": "- Add strict `--top-k` parsing/validation in `cmd_query` in `bin/ingo`.\n- Enforce positive integer input only.\n- Clamp to a bounded range (`1..50`) or reject out-of-range with a clear message (recommended: reject for explicitness).\n- Keep JSON payload numeric (`topK` as number) for valid inputs.\n- Update CLI usage/help text in `bin/ingo` and user-facing docs in `README.md`."
+    },
+    "scope_out": {
+      "present": true,
+      "text": "- No changes to Upstash API behavior, `lib/query.sh` payload schema, or response formatting.\n- No ingestion pipeline changes (`fetch`, `ocr`, `chunk`, `embed`, `cleanup`, `run`).\n- No new test framework introduction; rely on targeted shell validation commands.\n- No objective/mission rewrite for the repo."
+    },
+    "step_checklist": {
+      "present": true,
+      "count": 9
+    },
+    "expected_file_touches": {
+      "present": true,
+      "count": 2
+    },
+    "validation_commands": {
+      "present": true,
+      "count": 5
+    },
+    "acceptance_criteria": {
+      "present": true,
+      "count": 4
+    }
+  },
+  "lint_errors": []
+}

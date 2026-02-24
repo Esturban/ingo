@@ -9,7 +9,7 @@ ingo_fetch_url() {
 
   ts="$(date +%Y%m%d-%H%M%S)"
   out="$inbox/$ts.pdf"
-  curl -fsSL "$url" -o "$out"
+  ingo_http_curl -fsSL "$url" -o "$out"
   printf "%s\n" "$out"
 }
 

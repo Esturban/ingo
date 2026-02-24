@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-02-22T21:33:46Z",
+  "expected_files": [
+    "`bin/ingo`",
+    "Update only shellcheck source-annotation lines above `source` statements.",
+    "`lib/embed.sh`",
+    "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+    "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+  ],
+  "expected_checks": [
+    "`shellcheck -x bin/ingo lib/*.sh`",
+    "`bin/ingo doctor`",
+    "`bin/ingo --help`",
+    "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+    "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+    "`git diff -- bin/ingo lib/embed.sh`",
+    "(Confirm only intended minimal edits landed.)"
+  ],
+  "steps": [
+    {
+      "id": "S01",
+      "text": "Capture baseline outputs:",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    },
+    {
+      "id": "S02",
+      "text": "`bin/ingo --help` output snapshot.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    },
+    {
+      "id": "S03",
+      "text": "Current lint output from `shellcheck -x bin/ingo lib/*.sh`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    },
+    {
+      "id": "S04",
+      "text": "Fix `SC1091` in `bin/ingo` by adjusting `# shellcheck source=...` hints so `shellcheck -x` can resolve sourced files from repo root.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    },
+    {
+      "id": "S05",
+      "text": "Fix `SC2094` in `lib/embed.sh` by restructuring the read loop to avoid any read/write-same-file lint ambiguity (without changing embed semantics).",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    },
+    {
+      "id": "S06",
+      "text": "Keep edits surgical and localized; avoid altering argument parsing, usage text, and command dispatch.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    },
+    {
+      "id": "S07",
+      "text": "Re-run validations and confirm no behavioral drift in `doctor` and `--help`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Update only shellcheck source-annotation lines above `source` statements.",
+        "`lib/embed.sh`",
+        "Adjust loop/input-file handling in `ingo_embed_jsonl` to satisfy lint safely.",
+        "Optional (only if needed for repeatable check artifact): a temporary local diff/check command output, not committed."
+      ],
+      "expected_checks": [
+        "`shellcheck -x bin/ingo lib/*.sh`",
+        "`bin/ingo doctor`",
+        "`bin/ingo --help`",
+        "`diff -u <(bin/ingo --help) <(bin/ingo --help)`",
+        "(Run before/after snapshot variant in practice to assert unchanged help text.)",
+        "`git diff -- bin/ingo lib/embed.sh`",
+        "(Confirm only intended minimal edits landed.)"
+      ]
+    }
+  ]
+}

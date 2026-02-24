@@ -1,0 +1,151 @@
+{
+  "generated_at": "2026-02-22T21:59:08Z",
+  "expected_files": [
+    "`bin/ingo`",
+    "`README.md`"
+  ],
+  "expected_checks": [
+    "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+    "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+    "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+    "`bin/ingo query --help`",
+    "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+  ],
+  "steps": [
+    {
+      "id": "S01",
+      "text": "Inspect `cmd_query` option parsing in `bin/ingo` and add a small validator function (or inline check) for `--top-k`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S02",
+      "text": "Validate `--top-k` immediately after parsing `--top-k` value:",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S03",
+      "text": "Require regex `^[1-9][0-9]*$`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S04",
+      "text": "Enforce range bounds (`1..50`).",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S05",
+      "text": "Emit clear error to stderr and `return 2` on failure.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S06",
+      "text": "Update query help text from `--top-k N` to explicit format/range (for example `--top-k N (integer 1-50)`).",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S07",
+      "text": "Update `README.md` usage/help section to match runtime behavior.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S08",
+      "text": "Run static checks (`shellcheck`) and manual CLI validations for invalid/valid paths.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    },
+    {
+      "id": "S09",
+      "text": "Confirm valid path still reaches payload creation with numeric `topK`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "`README.md`"
+      ],
+      "expected_checks": [
+        "`shellcheck -S warning -x bin/ingo lib/*.sh`",
+        "`bin/ingo query \"x\" --top-k foo >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query \"x\" --top-k 0 >/tmp/ingo.err 2>&1; code=$?; echo \"exit=$code\"; cat /tmp/ingo.err`",
+        "`bin/ingo query --help`",
+        "`tmpbin=\"$(mktemp -d)\"; cat >\"$tmpbin/curl\" <<'EOF'\\n#!/usr/bin/env bash\\nwhile [ \\\"$#\\\" -gt 0 ]; do\\n  if [ \\\"$1\\\" = \\\"-d\\\" ]; then\\n    payload=\\\"$2\\\"; shift 2; continue\\n  fi\\n  shift\\ndone\\nprintf '%s\\\\n200\\\\n' '{\\\"result\\\":[]}'\\nprintf '%s' \\\"$payload\\\" > /tmp/ingo.payload.json\\nEOF\\nchmod +x \\\"$tmpbin/curl\\\"; PATH=\\\"$tmpbin:$PATH\\\" UPSTASH_VECTOR_REST_URL=\\\"https://example.com\\\" UPSTASH_VECTOR_REST_TOKEN=\\\"t\\\" bin/ingo query \\\"x\\\" --top-k 8 >/tmp/ingo.out 2>/tmp/ingo.err; code=$?; echo \\\"exit=$code\\\"; cat /tmp/ingo.err; jq '.topK|type,.topK' /tmp/ingo.payload.json`"
+      ]
+    }
+  ]
+}
