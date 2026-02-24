@@ -1,0 +1,35 @@
+{
+  "plan_file": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-213305-issue-13/plan.md",
+  "valid": true,
+  "sections": {
+    "objective": {
+      "present": true,
+      "text": "Propose a minimal, testable fix plan for issue `#13` that removes current shell lint risks in the embed/sourcing paths while preserving runtime behavior and CLI output."
+    },
+    "scope_in": {
+      "present": true,
+      "text": "- Resolve current `shellcheck` findings in `bin/ingo` (`SC1091`) and `lib/embed.sh` (`SC2094`).\n- Keep ingest/query command behavior unchanged (`doctor`, `embed`, `run`, `query`, etc.).\n- Keep `bin/ingo --help` text byte-for-byte stable."
+    },
+    "scope_out": {
+      "present": true,
+      "text": "- No feature work, refactors, or CLI contract changes.\n- No changes to vector API semantics, relevance logic, OCR/chunk pipeline rules, or env variable schema.\n- No dependency/toolchain changes beyond existing shell tooling."
+    },
+    "step_checklist": {
+      "present": true,
+      "count": 7
+    },
+    "expected_file_touches": {
+      "present": true,
+      "count": 5
+    },
+    "validation_commands": {
+      "present": true,
+      "count": 7
+    },
+    "acceptance_criteria": {
+      "present": true,
+      "count": 4
+    }
+  },
+  "lint_errors": []
+}

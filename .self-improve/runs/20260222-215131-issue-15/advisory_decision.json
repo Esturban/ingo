@@ -1,0 +1,8 @@
+{
+  "mode": "strict",
+  "allow_commit": true,
+  "allow_pr": true,
+  "allow_issue_close": true,
+  "required_labels": [],
+  "failure_reasons": []
+}

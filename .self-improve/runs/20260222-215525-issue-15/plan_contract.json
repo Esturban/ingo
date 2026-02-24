@@ -1,0 +1,35 @@
+{
+  "plan_file": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-215525-issue-15/plan.md",
+  "valid": true,
+  "sections": {
+    "objective": {
+      "present": true,
+      "text": "- Plan a minimal, repo-specific fix for issue `#15` so `bin/ingo query` validates `--top-k` early, fails fast on invalid input with exit code `2`, and only sends numeric `topK` values to `/query-data`."
+    },
+    "scope_in": {
+      "present": true,
+      "text": "- Add strict `--top-k` validation in `cmd_query` inside `bin/ingo`.\n- Enforce positive integer input for `--top-k`.\n- Clamp valid numeric input to a bounded max (proposed `50`) with documented behavior.\n- Update CLI usage/help text to state valid `--top-k` format/range.\n- Verify behavior with concrete command checks (invalid string, zero, valid integer)."
+    },
+    "scope_out": {
+      "present": true,
+      "text": "- No changes to ingestion flow (`fetch/ocr/chunk/embed/cleanup`).\n- No API contract changes in `lib/query.sh` request schema beyond ensuring `topK` receives a validated numeric value.\n- No new external dependencies or major refactors.\n- No broad UX redesign of CLI help beyond `query --top-k` wording."
+    },
+    "step_checklist": {
+      "present": true,
+      "count": 9
+    },
+    "expected_file_touches": {
+      "present": true,
+      "count": 5
+    },
+    "validation_commands": {
+      "present": true,
+      "count": 9
+    },
+    "acceptance_criteria": {
+      "present": true,
+      "count": 4
+    }
+  },
+  "lint_errors": []
+}

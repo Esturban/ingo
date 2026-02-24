@@ -1,0 +1,148 @@
+{
+  "steps": [
+    {
+      "id": "S01",
+      "text": "[ ] Confirm current `cmd_query` option parsing path in `bin/ingo` and identify insertion point right after `--top-k` assignment.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S02",
+      "text": "[ ] Implement a small validator in `bin/ingo` (inline or helper) that:",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S03",
+      "text": "[ ] accepts only `^[0-9]+$`",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S04",
+      "text": "[ ] rejects `0`",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S05",
+      "text": "[ ] rejects negatives/decimals/non-numeric values",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S06",
+      "text": "[ ] returns exit code `2` with a clear message.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S07",
+      "text": "[ ] Add clamp logic to cap `top_k` to `50` (or chosen upper bound), keeping default `8`.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S08",
+      "text": "[ ] Update usage/help strings in `usage()` and `cmd_query --help` to document valid format/range (e.g. `1-50`).",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    },
+    {
+      "id": "S09",
+      "text": "[ ] Run static/smoke checks and record outputs for the issue acceptance cases.",
+      "expected_files": [
+        "`bin/ingo`",
+        "Add `--top-k` validation and clamp in `cmd_query`.",
+        "Update query usage/help text to include valid range/format.",
+        "`README.md`",
+        "Update query usage note to reflect `--top-k` valid range (if maintained as user-facing CLI contract documentation)."
+      ],
+      "covered_files": [
+        "README.md",
+        "bin/ingo"
+      ],
+      "covered": true
+    }
+  ]
+}

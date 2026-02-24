@@ -1,0 +1,35 @@
+{
+  "plan_file": "/Users/EVA/Desktop/eva/03_development/_dev/repos/3_utilities/sh/ingo/.self-improve/runs/20260222-213902-issue-13/plan.md",
+  "valid": true,
+  "sections": {
+    "objective": {
+      "present": true,
+      "text": "- Propose a minimal fix plan for issue #13 that resolves current ShellCheck findings in the embed/sourcing path while preserving the existing `ingo` ingest/query CLI behavior and command contract."
+    },
+    "scope_in": {
+      "present": true,
+      "text": "- Address `SC1091` sourcing-follow issues in `bin/ingo` so `shellcheck -x` can resolve sourced libs reliably.\n- Address `SC2094` findings in `lib/embed.sh` around the JSONL read loop.\n- Keep runtime behavior stable for `ingo embed`, `ingo doctor`, and `ingo --help`.\n- Add only targeted, testable shell changes (no feature changes)."
+    },
+    "scope_out": {
+      "present": true,
+      "text": "- No changes to API/provider logic (Upstash request format, auth flow, endpoint behavior).\n- No CLI UX redesign or help text rewording.\n- No new commands, flags, dependencies, or broad refactors across unrelated `lib/*.sh` files.\n- No changes driven by issue text execution; only repo-file edits and repo-local validation."
+    },
+    "step_checklist": {
+      "present": true,
+      "count": 7
+    },
+    "expected_file_touches": {
+      "present": true,
+      "count": 2
+    },
+    "validation_commands": {
+      "present": true,
+      "count": 5
+    },
+    "acceptance_criteria": {
+      "present": true,
+      "count": 4
+    }
+  },
+  "lint_errors": []
+}
