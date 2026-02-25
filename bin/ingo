@@ -378,6 +378,13 @@ cmd_query() {
     esac
   done
 
+  case "$top_k" in
+    ''|*[!0-9]*|0)
+      echo "invalid --top-k: must be a positive integer" >&2
+      return 2
+      ;;
+  esac
+
   ingo_query_text "$question" "$top_k" "$INGO_NAMESPACE"
 }
 
