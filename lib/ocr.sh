@@ -41,15 +41,50 @@ ingo_file_sha256() {
   printf "\n"
 }
 
+ingo_hash_text() {
+  local text="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf "%s" "$text" | sha256sum | awk '{print $1}'
+    return 0
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    printf "%s" "$text" | shasum -a 256 | awk '{print $1}'
+    return 0
+  fi
+  cksum <<<"$text" | awk '{print $1}'
+}
+
+ingo_pdf_rel_path() {
+  local pdf="$1"
+  local root="${2:-}"
+  if [ -n "$root" ] && [ "${pdf#"$root"/}" != "$pdf" ]; then
+    printf "%s\n" "${pdf#"$root"/}"
+    return 0
+  fi
+  printf "%s\n" "$pdf"
+}
+
+ingo_pdf_artifact_key() {
+  local pdf="$1"
+  local root="${2:-}"
+  local base stem rel_path digest short_digest
+
+  base="$(basename "$pdf")"
+  stem="${base%.*}"
+  rel_path="$(ingo_pdf_rel_path "$pdf" "$root")"
+  digest="$(ingo_hash_text "$rel_path")"
+  short_digest="$(printf "%s" "$digest" | cut -c1-10)"
+  printf "%s-%s\n" "$stem" "$short_digest"
+}
+
 ingo_ocr_pdf() {
   local pdf="$1"
   local out_dir="$2"
   local lang="$3"
   local root="${4:-}"
-  local base stem out_base out_txt
+  local stem out_base out_txt
 
-  base="$(basename "$pdf")"
-  stem="${base%.pdf}"
+  stem="$(ingo_pdf_artifact_key "$pdf" "$root")"
   out_base="$out_dir/$stem"
   out_txt="$out_base.txt"
 
@@ -114,11 +149,7 @@ ingo_write_meta() {
   local base rel_path folder_path file_size_bytes file_mtime file_hash meta
 
   base="$(basename "$pdf")"
-  if [ -n "$root" ] && [ "${pdf#"$root"/}" != "$pdf" ]; then
-    rel_path="${pdf#"$root"/}"
-  else
-    rel_path="$pdf"
-  fi
+  rel_path="$(ingo_pdf_rel_path "$pdf" "$root")"
   folder_path="$(dirname "$rel_path")"
   file_size_bytes="$(ingo_file_size_bytes "$pdf")"
   file_mtime="$(ingo_file_mtime "$pdf")"

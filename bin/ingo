@@ -30,9 +30,9 @@ Usage:
   ingo fetch [--url URL] [--dir DIR]
   ingo ocr [--dir DIR]
   ingo chunk [--strict|--no-strict]
-  ingo embed
-  ingo cleanup
-  ingo run [--url URL] [--dir DIR] [--strict|--no-strict]
+  ingo embed [--force]
+  ingo cleanup [--markers]
+  ingo run [--url URL] [--dir DIR] [--strict|--no-strict] [--force]
   ingo query "<pregunta>" [--top-k N]
 EOF
 }
@@ -196,14 +196,34 @@ cmd_embed() {
   ingo_require_bin jq
   ingo_require_env
 
-  local jsonl count
+  local force=0
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --force)
+        force=1
+        shift
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
+  local jsonl count marker chunk_hash marker_hash marker_namespace
   find "$ROOT_DIR/$INGO_CHUNK_DIR" -maxdepth 1 -type f -name '*.jsonl' | sort | while IFS= read -r jsonl; do
-    if [ -s "${jsonl}.embedded" ]; then
+    marker="${jsonl}.embedded"
+    chunk_hash="$(ingo_file_sha256 "$jsonl")"
+    marker_hash="$(ingo_marker_get_value "$marker" "chunk_hash")"
+    marker_namespace="$(ingo_marker_get_value "$marker" "namespace")"
+
+    if [ "$force" -ne 1 ] && [ -n "$chunk_hash" ] && [ "$marker_hash" = "$chunk_hash" ] && [ "$marker_namespace" = "$INGO_NAMESPACE" ]; then
       echo "embed-skip: $jsonl"
       continue
     fi
+
     count="$(ingo_embed_jsonl "$jsonl" "$INGO_NAMESPACE" "$ROOT_DIR/$INGO_RAW_DIR")"
-    printf "%s\n" "$count" > "${jsonl}.embedded"
+    ingo_write_embed_marker "$marker" "$chunk_hash" "$INGO_NAMESPACE" "$count"
     echo "embed: $jsonl -> $count vectors"
   done
 }
@@ -211,9 +231,29 @@ cmd_embed() {
 cmd_cleanup() {
   ingo_load_env
   ingo_require_ingest_enabled
+  local cleanup_markers=0
+
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --markers)
+        cleanup_markers=1
+        shift
+        ;;
+      *)
+        echo "unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+
   if [ "$INGO_CLEANUP_TEXT" = "1" ]; then
     find "$ROOT_DIR/$INGO_RAW_DIR" -maxdepth 1 -type f -name '*.txt' -delete
     find "$ROOT_DIR/$INGO_CHUNK_DIR" -maxdepth 1 -type f -name '*.jsonl' -delete
+    if [ "$cleanup_markers" -eq 1 ]; then
+      find "$ROOT_DIR/$INGO_CHUNK_DIR" -maxdepth 1 -type f -name '*.jsonl.embedded' -delete
+      echo "cleanup: removed OCR, chunk intermediates, and embed markers"
+      return 0
+    fi
     echo "cleanup: removed OCR and chunk intermediates"
   else
     echo "cleanup skipped: INGO_CLEANUP_TEXT=$INGO_CLEANUP_TEXT"
@@ -227,6 +267,7 @@ cmd_run() {
   local url=""
   local dir=""
   local strict_flag=""
+  local force=0
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -242,6 +283,10 @@ cmd_run() {
         ;;
       --strict|--no-strict)
         strict_flag="$1"
+        shift
+        ;;
+      --force)
+        force=1
         shift
         ;;
       *)
@@ -272,8 +317,32 @@ cmd_run() {
   else
     cmd_chunk
   fi
-  cmd_embed
+  if [ "$force" -eq 1 ]; then
+    cmd_embed --force
+  else
+    cmd_embed
+  fi
   cmd_cleanup
+}
+
+ingo_marker_get_value() {
+  local marker_file="$1"
+  local key="$2"
+  [ -s "$marker_file" ] || return 0
+  awk -F '=' -v key="$key" '$1 == key {print substr($0, index($0, "=") + 1); exit}' "$marker_file" 2>/dev/null || true
+}
+
+ingo_write_embed_marker() {
+  local marker_file="$1"
+  local chunk_hash="$2"
+  local namespace="$3"
+  local count="$4"
+  {
+    printf "version=2\n"
+    printf "chunk_hash=%s\n" "$chunk_hash"
+    printf "namespace=%s\n" "$namespace"
+    printf "count=%s\n" "$count"
+  } > "$marker_file"
 }
 
 cmd_query() {
@@ -308,6 +377,13 @@ cmd_query() {
         ;;
     esac
   done
+
+  case "$top_k" in
+    ''|*[!0-9]*|0)
+      echo "invalid --top-k: must be a positive integer" >&2
+      return 2
+      ;;
+  esac
 
   ingo_query_text "$question" "$top_k" "$INGO_NAMESPACE"
 }
