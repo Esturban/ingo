@@ -100,37 +100,54 @@ curl() {
 }
 
 test_http_defaults() {
-  unset INGO_HTTP_CONNECT_TIMEOUT INGO_HTTP_READ_TIMEOUT INGO_HTTP_RETRY_MAX INGO_HTTP_RETRY_BACKOFF
-  unset INGO_HTTP_RETRY_BACKOFF_MIN INGO_HTTP_RETRY_BACKOFF_MAX INGO_HTTP_RETRY_BACKOFF_FACTOR INGO_HTTP_RETRY_AFTER_MAX
+  unset INGO_HTTP_CONNECT_TIMEOUT INGO_HTTP_READ_TIMEOUT
+  unset INGO_HTTP_RETRY_ATTEMPTS INGO_HTTP_RETRY_BACKOFF_MIN INGO_HTTP_RETRY_BACKOFF_MAX INGO_HTTP_RETRY_BACKOFF_FACTOR INGO_HTTP_RETRY_AFTER_MAX
+  unset INGO_HTTP_RETRY_MAX INGO_HTTP_RETRY_BACKOFF
   ingo_load_env
+
   assert_eq "$INGO_HTTP_CONNECT_TIMEOUT" "5" "default connect timeout"
   assert_eq "$INGO_HTTP_READ_TIMEOUT" "30" "default read timeout"
-  assert_eq "$INGO_HTTP_RETRY_MAX" "2" "default retry max"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF" "1" "default legacy retry backoff"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "1" "default retry min"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "30" "default retry max sleep"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF_FACTOR" "2" "default retry factor"
-  assert_eq "$INGO_HTTP_RETRY_AFTER_MAX" "30" "default retry-after cap"
+  assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "2" "default retry attempts"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "1" "default retry backoff min"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "8" "default retry backoff max"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_FACTOR" "2" "default retry backoff factor"
+  assert_eq "$INGO_HTTP_RETRY_AFTER_MAX" "8" "default retry-after cap"
+  assert_eq "$INGO_HTTP_RETRY_MAX" "2" "default retry max alias"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF" "1" "default retry backoff alias"
 }
 
 test_http_overrides() {
   INGO_HTTP_CONNECT_TIMEOUT="9"
   INGO_HTTP_READ_TIMEOUT="44"
-  INGO_HTTP_RETRY_MAX="7"
-  INGO_HTTP_RETRY_BACKOFF="3"
-  INGO_HTTP_RETRY_BACKOFF_MIN="4"
+  INGO_HTTP_RETRY_ATTEMPTS="7"
+  INGO_HTTP_RETRY_BACKOFF_MIN="3"
   INGO_HTTP_RETRY_BACKOFF_MAX="21"
-  INGO_HTTP_RETRY_BACKOFF_FACTOR="5"
+  INGO_HTTP_RETRY_BACKOFF_FACTOR="4"
   INGO_HTTP_RETRY_AFTER_MAX="13"
   ingo_load_env
+
   assert_eq "$INGO_HTTP_CONNECT_TIMEOUT" "9" "override connect timeout"
   assert_eq "$INGO_HTTP_READ_TIMEOUT" "44" "override read timeout"
-  assert_eq "$INGO_HTTP_RETRY_MAX" "7" "override retry max"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF" "3" "override retry legacy backoff"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "4" "override retry min"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "21" "override retry max sleep"
-  assert_eq "$INGO_HTTP_RETRY_BACKOFF_FACTOR" "5" "override retry factor"
+  assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "7" "override retry attempts"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "3" "override retry backoff min"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "21" "override retry backoff max"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_FACTOR" "4" "override retry backoff factor"
   assert_eq "$INGO_HTTP_RETRY_AFTER_MAX" "13" "override retry-after cap"
+  assert_eq "$INGO_HTTP_RETRY_MAX" "7" "override retry max alias"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF" "3" "override retry backoff alias"
+}
+
+test_http_legacy_alias_overrides() {
+  unset INGO_HTTP_RETRY_ATTEMPTS INGO_HTTP_RETRY_BACKOFF_MIN INGO_HTTP_RETRY_BACKOFF_MAX INGO_HTTP_RETRY_BACKOFF_FACTOR INGO_HTTP_RETRY_AFTER_MAX
+  INGO_HTTP_RETRY_MAX="6"
+  INGO_HTTP_RETRY_BACKOFF="4"
+  ingo_load_env
+
+  assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "6" "legacy retry max maps to attempts"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "4" "legacy retry backoff maps to min"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "8" "legacy override keeps default max"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_FACTOR" "2" "legacy override keeps default factor"
+  assert_eq "$INGO_HTTP_RETRY_AFTER_MAX" "8" "legacy override keeps default retry-after cap"
 }
 
 test_http_wrapper_curl_flags() {
@@ -142,7 +159,7 @@ test_http_wrapper_curl_flags() {
 
   INGO_HTTP_CONNECT_TIMEOUT="11"
   INGO_HTTP_READ_TIMEOUT="22"
-  INGO_HTTP_RETRY_MAX="0"
+  INGO_HTTP_RETRY_ATTEMPTS="0"
   INGO_HTTP_RETRY_BACKOFF_MIN="1"
   INGO_HTTP_RETRY_BACKOFF_MAX="2"
   INGO_HTTP_RETRY_BACKOFF_FACTOR="2"
@@ -170,7 +187,7 @@ test_http_retry_after_precedence_and_limits() {
     printf "%s\n" "$1" >> "$sleep_file"
   }
 
-  INGO_HTTP_RETRY_MAX="2"
+  INGO_HTTP_RETRY_ATTEMPTS="2"
   INGO_HTTP_RETRY_BACKOFF_MIN="1"
   INGO_HTTP_RETRY_BACKOFF_MAX="30"
   INGO_HTTP_RETRY_BACKOFF_FACTOR="2"
@@ -200,7 +217,7 @@ test_http_retry_after_fallback_to_computed_backoff() {
     printf "%s\n" "$1" >> "$sleep_file"
   }
 
-  INGO_HTTP_RETRY_MAX="2"
+  INGO_HTTP_RETRY_ATTEMPTS="2"
   INGO_HTTP_RETRY_BACKOFF_MIN="4"
   INGO_HTTP_RETRY_BACKOFF_MAX="5"
   INGO_HTTP_RETRY_BACKOFF_FACTOR="3"
@@ -230,7 +247,7 @@ test_http_non_retriable_4xx_fails_fast() {
     printf "%s\n" "$1" >> "$sleep_file"
   }
 
-  INGO_HTTP_RETRY_MAX="3"
+  INGO_HTTP_RETRY_ATTEMPTS="3"
   INGO_HTTP_RETRY_BACKOFF_MIN="1"
   INGO_HTTP_RETRY_BACKOFF_MAX="9"
   INGO_HTTP_RETRY_BACKOFF_FACTOR="2"
@@ -307,6 +324,7 @@ test_embed_and_query_use_http_wrapper() {
 main() {
   test_http_defaults
   test_http_overrides
+  test_http_legacy_alias_overrides
   test_http_wrapper_curl_flags
   test_http_retry_after_precedence_and_limits
   test_http_retry_after_fallback_to_computed_backoff

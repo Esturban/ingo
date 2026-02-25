@@ -3,12 +3,12 @@
 set -euo pipefail
 
 # Retriable HTTP status matrix:
-#   408 Request Timeout       – transient server-side timeout
-#   429 Too Many Requests     – rate limited; honor Retry-After when present
-#   500 Internal Server Error – transient upstream fault
-#   502 Bad Gateway           – transient upstream fault
-#   503 Service Unavailable   – transient upstream fault; honor Retry-After
-#   504 Gateway Timeout       – transient upstream timeout
+#   408 Request Timeout       - transient server-side timeout
+#   429 Too Many Requests     - rate limited; honor Retry-After when present
+#   500 Internal Server Error - transient upstream fault
+#   502 Bad Gateway           - transient upstream fault
+#   503 Service Unavailable   - transient upstream fault; honor Retry-After
+#   504 Gateway Timeout       - transient upstream timeout
 ingo_http_is_retriable_status() {
   case "$1" in
     408|429|500|502|503|504) return 0 ;;
@@ -17,11 +17,11 @@ ingo_http_is_retriable_status() {
 }
 
 # Retriable curl exit code matrix:
-#    7 CURLE_COULDNT_CONNECT    – connection refused / host unreachable
-#   18 CURLE_PARTIAL_FILE       – transfer interrupted mid-stream
-#   28 CURLE_OPERATION_TIMEDOUT – request exceeded --max-time
-#   52 CURLE_GOT_NOTHING        – server closed connection without response
-#   56 CURLE_RECV_ERROR         – network receive error
+#    7 CURLE_COULDNT_CONNECT    - connection refused / host unreachable
+#   18 CURLE_PARTIAL_FILE       - transfer interrupted mid-stream
+#   28 CURLE_OPERATION_TIMEDOUT - request exceeded --max-time
+#   52 CURLE_GOT_NOTHING        - server closed connection without response
+#   56 CURLE_RECV_ERROR         - network receive error
 ingo_http_is_retriable_exit_code() {
   case "$1" in
     7|18|28|52|56) return 0 ;;
@@ -122,6 +122,7 @@ ingo_http_retry_delay_seconds() {
 
 ingo_http_curl() {
   local attempt=0
+  local retry_limit="${INGO_HTTP_RETRY_ATTEMPTS:-${INGO_HTTP_RETRY_MAX:-0}}"
   local status curl_rc should_retry delay headers_file body_file err_file
 
   while :; do
@@ -145,7 +146,7 @@ ingo_http_curl() {
       should_retry=0
     fi
 
-    if [ "$should_retry" -eq 0 ] && [ "$attempt" -lt "$INGO_HTTP_RETRY_MAX" ]; then
+    if [ "$should_retry" -eq 0 ] && [ "$attempt" -lt "$retry_limit" ]; then
       delay="$(ingo_http_retry_delay_seconds "$attempt" "$headers_file")"
       rm -f "$headers_file" "$body_file" "$err_file"
       sleep "$delay"
