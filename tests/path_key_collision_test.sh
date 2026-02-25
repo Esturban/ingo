@@ -5,10 +5,13 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # shellcheck source=../lib/ocr.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/ocr.sh"
 # shellcheck source=../lib/chunk.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/chunk.sh"
 # shellcheck source=../lib/embed.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/embed.sh"
 
 fail() {
