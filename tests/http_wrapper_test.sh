@@ -5,14 +5,19 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # shellcheck source=../lib/env.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/env.sh"
 # shellcheck source=../lib/http.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
 # shellcheck source=../lib/fetch.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/fetch.sh"
 # shellcheck source=../lib/embed.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/embed.sh"
 # shellcheck source=../lib/query.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/query.sh"
 
 fail() {
@@ -183,6 +188,7 @@ test_http_retry_after_precedence_and_limits() {
 
   local sleep_file
   sleep_file="$(mktemp)"
+  # shellcheck disable=SC2329
   sleep() {
     printf "%s\n" "$1" >> "$sleep_file"
   }
@@ -213,6 +219,7 @@ test_http_retry_after_fallback_to_computed_backoff() {
 
   local sleep_file
   sleep_file="$(mktemp)"
+  # shellcheck disable=SC2329
   sleep() {
     printf "%s\n" "$1" >> "$sleep_file"
   }
@@ -273,6 +280,7 @@ test_fetch_uses_http_wrapper() {
   inbox="$(mktemp -d)"
   args_file="$(mktemp)"
 
+  # shellcheck disable=SC2329
   ingo_http_curl() {
     printf "%s\n" "$@" > "$args_file"
     return 0
