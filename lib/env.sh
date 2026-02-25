@@ -46,6 +46,9 @@ ingo_load_env() {
 
   : "${INGO_HTTP_RETRY_BACKOFF_MAX:=8}"
   : "${INGO_HTTP_RETRY_BACKOFF_FACTOR:=2}"
+  : "${INGO_HTTP_RETRY_AFTER_MAX:=$INGO_HTTP_RETRY_BACKOFF_MAX}"
+
+  # Keep legacy names populated for compatibility with older scripts/tests.
   INGO_HTTP_RETRY_MAX="$INGO_HTTP_RETRY_ATTEMPTS"
   INGO_HTTP_RETRY_BACKOFF="$INGO_HTTP_RETRY_BACKOFF_MIN"
 }
