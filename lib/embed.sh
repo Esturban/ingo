@@ -81,6 +81,7 @@ ingo_embed_jsonl() {
   local count=0
   local base meta_file
 
+  # shellcheck disable=SC2094
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     line="$(printf "%s" "$line" | LC_ALL=C tr -d '\000-\011\013\014\016-\037\177')"

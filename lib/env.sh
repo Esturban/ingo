@@ -102,3 +102,25 @@ ingo_require_ingest_enabled() {
     return 6
   fi
 }
+
+ingo_require_positive_integer() {
+  local name="$1"
+  local value="$2"
+  case "$value" in
+    ''|*[!0-9]*|0)
+      echo "invalid $name: must be a positive integer (got '$value')" >&2
+      return 2
+      ;;
+  esac
+}
+
+ingo_require_nonnegative_integer() {
+  local name="$1"
+  local value="$2"
+  case "$value" in
+    ''|*[!0-9]*)
+      echo "invalid $name: must be a non-negative integer (got '$value')" >&2
+      return 2
+      ;;
+  esac
+}
