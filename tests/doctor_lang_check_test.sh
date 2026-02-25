@@ -121,7 +121,8 @@ EOF
     INGO_LANG="spa" \
     "$ROOT_DIR/bin/ingo" doctor 2>&1
   )"
-  assert_eq "$out" "ok" "doctor prints ok when OCR language is installed"
+  assert_contains "$out" "http: connect_timeout=" "doctor prints effective HTTP settings"
+  assert_contains "$out" "ok" "doctor prints ok when OCR language is installed"
 }
 
 main() {
