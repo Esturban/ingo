@@ -5,20 +5,28 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # shellcheck source=../lib/env.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/env.sh"
 # shellcheck source=../lib/fetch.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/fetch.sh"
 # shellcheck source=../lib/http.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
 # shellcheck source=../lib/ocr.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/ocr.sh"
 # shellcheck source=../lib/chunk.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/chunk.sh"
 # shellcheck source=../lib/embed.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/embed.sh"
 # shellcheck source=../lib/relevance.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/relevance.sh"
 # shellcheck source=../lib/query.sh
+# shellcheck disable=SC1091
 source "$ROOT_DIR/lib/query.sh"
 
 usage() {
@@ -39,6 +47,13 @@ EOF
 
 doctor() {
   ingo_load_env
+  ingo_require_positive_integer "INGO_HTTP_CONNECT_TIMEOUT" "$INGO_HTTP_CONNECT_TIMEOUT"
+  ingo_require_positive_integer "INGO_HTTP_READ_TIMEOUT" "$INGO_HTTP_READ_TIMEOUT"
+  ingo_require_nonnegative_integer "INGO_HTTP_RETRY_ATTEMPTS" "$INGO_HTTP_RETRY_ATTEMPTS"
+  ingo_require_positive_integer "INGO_HTTP_RETRY_BACKOFF_MIN" "$INGO_HTTP_RETRY_BACKOFF_MIN"
+  ingo_require_positive_integer "INGO_HTTP_RETRY_BACKOFF_MAX" "$INGO_HTTP_RETRY_BACKOFF_MAX"
+  ingo_require_positive_integer "INGO_HTTP_RETRY_BACKOFF_FACTOR" "$INGO_HTTP_RETRY_BACKOFF_FACTOR"
+  ingo_require_nonnegative_integer "INGO_HTTP_RETRY_AFTER_MAX" "$INGO_HTTP_RETRY_AFTER_MAX"
   ingo_require_bin curl
   ingo_require_bin jq
   ingo_require_env
@@ -50,13 +65,20 @@ doctor() {
     ingo_require_bin pdftoppm
     ingo_require_tesseract_lang "$INGO_LANG"
   fi
+  printf "http: connect_timeout=%s read_timeout=%s retry_attempts=%s backoff_min=%s backoff_max=%s backoff_factor=%s retry_after_max=%s\n" \
+    "$INGO_HTTP_CONNECT_TIMEOUT" \
+    "$INGO_HTTP_READ_TIMEOUT" \
+    "$INGO_HTTP_RETRY_ATTEMPTS" \
+    "$INGO_HTTP_RETRY_BACKOFF_MIN" \
+    "$INGO_HTTP_RETRY_BACKOFF_MAX" \
+    "$INGO_HTTP_RETRY_BACKOFF_FACTOR" \
+    "$INGO_HTTP_RETRY_AFTER_MAX"
   echo "ok"
 }
 
 cmd_fetch() {
   ingo_load_env
   ingo_require_ingest_enabled
-  ingo_prepare_dirs
   ingo_require_bin curl
 
   local url=""
@@ -83,6 +105,7 @@ cmd_fetch() {
   if [ -n "$dir" ]; then
     INGO_INBOX="$dir"
   fi
+  ingo_prepare_dirs
 
   if [ -n "$url" ]; then
     local file
