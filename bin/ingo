@@ -56,7 +56,6 @@ doctor() {
 cmd_fetch() {
   ingo_load_env
   ingo_require_ingest_enabled
-  ingo_prepare_dirs
   ingo_require_bin curl
 
   local url=""
@@ -83,6 +82,7 @@ cmd_fetch() {
   if [ -n "$dir" ]; then
     INGO_INBOX="$dir"
   fi
+  ingo_prepare_dirs
 
   if [ -n "$url" ]; then
     local file
