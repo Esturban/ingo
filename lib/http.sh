@@ -131,6 +131,7 @@ ingo_http_curl() {
     err_file="$(mktemp)"
     set +e
     curl \
+      --http1.1 \
       --connect-timeout "$INGO_HTTP_CONNECT_TIMEOUT" \
       --max-time "$INGO_HTTP_READ_TIMEOUT" \
       -D "$headers_file" \

@@ -375,7 +375,7 @@ ingo_crawl_probe_url() {
   local url="$1"
   local out
   out="$(
-    curl -sSIL -o /dev/null \
+    curl --http1.1 -sSIL -o /dev/null \
       --connect-timeout "${INGO_HTTP_CONNECT_TIMEOUT:-5}" \
       --max-time "${INGO_HTTP_READ_TIMEOUT:-30}" \
       -w '%{http_code}\t%{content_type}\t%{url_effective}' \
