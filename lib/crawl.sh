@@ -161,6 +161,7 @@ ingo_crawl_discover_urls() {
   local work_dir="$5"
   local queue_file visited_file pages_dir
   local line depth url parent parsed host page_file next_depth candidate raw
+  local processed_count=0 queued_count=0 start_ts now elapsed progress_every verbose
 
   queue_file="$work_dir/queue.tsv"
   visited_file="$work_dir/visited.txt"
@@ -170,15 +171,29 @@ ingo_crawl_discover_urls() {
   : > "$visited_file"
   : > "$out_urls_file"
 
+  start_ts="$(date +%s)"
+  progress_every="${INGO_PROGRESS_EVERY:-25}"
+  verbose="${INGO_CRAWL_VERBOSE:-0}"
+
   while IFS= read -r raw; do
     raw="${raw%%#*}"
     raw="$(printf "%s" "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     [ -n "$raw" ] || continue
     printf "0\t%s\t\n" "$raw" >> "$queue_file"
+    queued_count=$((queued_count + 1))
   done < "$seeds_file"
 
   while IFS=$'\t' read -r depth url parent; do
     [ -n "$url" ] || continue
+    processed_count=$((processed_count + 1))
+    if [ "$verbose" = "1" ]; then
+      echo "crawl-url: depth=$depth url=$url"
+    fi
+    if [ $((processed_count % progress_every)) -eq 0 ]; then
+      now="$(date +%s)"
+      elapsed=$((now - start_ts))
+      echo "crawl-progress: processed=$processed_count queued=$queued_count elapsed=${elapsed}s"
+    fi
     if grep -Fqx "$url" "$visited_file"; then
       continue
     fi
@@ -209,6 +224,7 @@ ingo_crawl_discover_urls() {
         continue
       fi
       printf "%s\t%s\t%s\n" "$next_depth" "$candidate" "$url" >> "$queue_file"
+      queued_count=$((queued_count + 1))
     done < <(ingo_crawl_extract_links "$page_file")
   done < "$queue_file"
 
