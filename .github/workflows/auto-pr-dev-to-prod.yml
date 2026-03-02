@@ -1,4 +1,4 @@
-name: improve dev to master
+name: ingo dev to master
 
 on:
   push:
