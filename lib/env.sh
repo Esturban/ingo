@@ -24,6 +24,9 @@ ingo_load_env() {
   : "${INGO_MIN_TERM_MATCHES:=2}"
   : "${INGO_REJECTED_DIR:=data/rejected}"
   : "${INGO_RELEVANCE_TERMS:=ambiental,licencia,vertimiento,emision,resolucion,decreto,articulo,autoridad,ministerio,agua,suelo,aire}"
+  : "${INGO_CORPUS_DIR:=data/corpus}"
+  : "${INGO_CRAWL_DEPTH:=2}"
+  : "${INGO_ALLOWED_HOSTS_FILE:=data/corpus/config/allow_hosts.txt}"
   : "${INGO_ROLE:=all}"
   : "${INGO_HTTP_CONNECT_TIMEOUT:=5}"
   : "${INGO_HTTP_READ_TIMEOUT:=30}"
@@ -51,6 +54,12 @@ ingo_load_env() {
   # Keep legacy names populated for compatibility with older scripts/tests.
   INGO_HTTP_RETRY_MAX="$INGO_HTTP_RETRY_ATTEMPTS"
   INGO_HTTP_RETRY_BACKOFF="$INGO_HTTP_RETRY_BACKOFF_MIN"
+}
+
+ingo_require_positive_integer_env() {
+  local name="$1"
+  local value="${!name:-}"
+  ingo_require_positive_integer "$name" "$value"
 }
 
 ingo_require_bin() {
