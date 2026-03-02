@@ -44,6 +44,30 @@ ingo_crawl_prefer_https() {
   printf "%s\n" "$url"
 }
 
+ingo_crawl_decode_entities() {
+  local value="$1"
+  value="${value//&amp;/&}"
+  value="${value//&#38;/&}"
+  printf "%s\n" "$value"
+}
+
+ingo_crawl_sanitize_url() {
+  local url="$1"
+  url="$(printf "%s" "$url" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  url="$(ingo_crawl_decode_entities "$url")"
+  printf "%s\n" "$url"
+}
+
+ingo_crawl_is_malformed_url() {
+  local url="$1"
+  url="$(ingo_crawl_sanitize_url "$url")"
+  [[ "$url" =~ ^https?:// ]] || return 0
+  [[ "$url" =~ [[:space:]] ]] && return 0
+  [[ "$url" == *"|"* ]] && return 0
+  [[ "$url" =~ ^https?://[^/?#]+ ]] || return 0
+  return 1
+}
+
 ingo_crawl_extract_scheme_host() {
   local url="$1"
   if [[ "$url" =~ ^(https?)://([^/]+) ]]; then
@@ -80,10 +104,14 @@ ingo_crawl_normalize_url() {
   local parsed scheme host root path base_dir query path_only combined
 
   raw_url="$(ingo_crawl_trim_fragment "$raw_url")"
+  raw_url="$(ingo_crawl_sanitize_url "$raw_url")"
   [ -n "$raw_url" ] || return 1
 
   if [[ "$raw_url" =~ ^https?:// ]]; then
     raw_url="$(ingo_crawl_prefer_https "$raw_url")"
+    if ingo_crawl_is_malformed_url "$raw_url"; then
+      return 1
+    fi
     parsed="$(ingo_crawl_extract_scheme_host "$raw_url" || true)"
     [ -n "$parsed" ] || return 1
     scheme="${parsed%%$'\t'*}"
@@ -197,15 +225,22 @@ ingo_crawl_discover_urls() {
 
   while IFS= read -r raw; do
     raw="${raw%%#*}"
-    raw="$(printf "%s" "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    raw="$(ingo_crawl_sanitize_url "$raw")"
     [ -n "$raw" ] || continue
     raw="$(ingo_crawl_prefer_https "$raw")"
+    if ingo_crawl_is_malformed_url "$raw"; then
+      continue
+    fi
     printf "0\t%s\t\n" "$raw" >> "$queue_file"
     queued_count=$((queued_count + 1))
   done < "$seeds_file"
 
   while IFS=$'\t' read -r depth url parent; do
     [ -n "$url" ] || continue
+    url="$(ingo_crawl_sanitize_url "$url")"
+    if ingo_crawl_is_malformed_url "$url"; then
+      continue
+    fi
     url="$(ingo_crawl_prefer_https "$url")"
     processed_count=$((processed_count + 1))
     if [ "$verbose" = "1" ]; then
@@ -247,6 +282,10 @@ ingo_crawl_discover_urls() {
     while IFS= read -r raw; do
       candidate="$(ingo_crawl_normalize_url "$url" "$raw" || true)"
       [ -n "$candidate" ] || continue
+      candidate="$(ingo_crawl_sanitize_url "$candidate")"
+      if ingo_crawl_is_malformed_url "$candidate"; then
+        continue
+      fi
       parsed="$(ingo_crawl_extract_scheme_host "$candidate" || true)"
       [ -n "$parsed" ] || continue
       host="${parsed#*$'\t'}"
@@ -499,6 +538,12 @@ ingo_crawl_collect_documents() {
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
+    url="$(ingo_crawl_sanitize_url "$url")"
+    if ingo_crawl_is_malformed_url "$url"; then
+      skipped_count=$((skipped_count + 1))
+      [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "malformed_url" "" ""
+      continue
+    fi
     ext=""
     if ingo_url_matches_deny_pattern "$url"; then
       skipped_count=$((skipped_count + 1))
