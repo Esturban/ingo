@@ -7,10 +7,38 @@ ingo_crawl_trim_fragment() {
   printf "%s\n" "${url%%#*}"
 }
 
+ingo_crawl_resolve_path() {
+  local path="$1"
+  local part
+  local -a stack=()
+  local out
+
+  path="${path//\/\//\/}"
+  IFS='/' read -r -a parts <<< "$path"
+  for part in "${parts[@]}"; do
+    case "$part" in
+      ""|".") continue ;;
+      "..")
+        if [ "${#stack[@]}" -gt 0 ]; then
+          unset 'stack[${#stack[@]}-1]'
+        fi
+        ;;
+      *) stack+=("$part") ;;
+    esac
+  done
+
+  if [ "${#stack[@]}" -eq 0 ]; then
+    printf "/\n"
+    return 0
+  fi
+  out="/$(IFS='/'; printf "%s" "${stack[*]}")"
+  printf "%s\n" "$out"
+}
+
 ingo_crawl_extract_scheme_host() {
   local url="$1"
   if [[ "$url" =~ ^(https?)://([^/]+) ]]; then
-    printf "%s\t%s\n" "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+    printf "%s\t%s\n" "${BASH_REMATCH[1]}" "$(printf "%s" "${BASH_REMATCH[2]}" | tr '[:upper:]' '[:lower:]')"
     return 0
   fi
   return 1
@@ -40,13 +68,28 @@ ingo_crawl_host_allowed() {
 ingo_crawl_normalize_url() {
   local base_url="$1"
   local raw_url="$2"
-  local parsed scheme host root path base_dir
+  local parsed scheme host root path base_dir query path_only combined
 
   raw_url="$(ingo_crawl_trim_fragment "$raw_url")"
   [ -n "$raw_url" ] || return 1
 
   if [[ "$raw_url" =~ ^https?:// ]]; then
-    printf "%s\n" "$raw_url"
+    parsed="$(ingo_crawl_extract_scheme_host "$raw_url" || true)"
+    [ -n "$parsed" ] || return 1
+    scheme="${parsed%%$'\t'*}"
+    host="${parsed#*$'\t'}"
+    root="$scheme://$host"
+    combined="${raw_url#"$root"}"
+    [ -n "$combined" ] || combined="/"
+    if [[ "$combined" == *\?* ]]; then
+      query="?${combined#*\?}"
+      path_only="${combined%%\?*}"
+    else
+      query=""
+      path_only="$combined"
+    fi
+    path_only="$(ingo_crawl_resolve_path "$path_only")"
+    printf "%s%s%s\n" "$root" "$path_only" "$query"
     return 0
   fi
 
@@ -58,11 +101,19 @@ ingo_crawl_normalize_url() {
   root="$scheme://$host"
 
   if [[ "$raw_url" =~ ^// ]]; then
-    printf "%s:%s\n" "$scheme" "$raw_url"
+    printf "%s:%s\n" "$scheme" "$(printf "%s" "$raw_url" | tr '[:upper:]' '[:lower:]')"
     return 0
   fi
   if [[ "$raw_url" =~ ^/ ]]; then
-    printf "%s%s\n" "$root" "$raw_url"
+    if [[ "$raw_url" == *\?* ]]; then
+      query="?${raw_url#*\?}"
+      path_only="${raw_url%%\?*}"
+    else
+      query=""
+      path_only="$raw_url"
+    fi
+    path_only="$(ingo_crawl_resolve_path "$path_only")"
+    printf "%s%s%s\n" "$root" "$path_only" "$query"
     return 0
   fi
   if [[ "$raw_url" =~ ^mailto:|^javascript:|^data: ]]; then
@@ -75,12 +126,22 @@ ingo_crawl_normalize_url() {
   fi
   base_dir="${path%/*}"
   [ -n "$base_dir" ] || base_dir="/"
-  printf "%s/%s\n" "$root${base_dir%/}" "$raw_url"
+  combined="$root${base_dir%/}/$raw_url"
+  if [[ "$combined" == *\?* ]]; then
+    query="?${combined#*\?}"
+    path_only="${combined%%\?*}"
+  else
+    query=""
+    path_only="$combined"
+  fi
+  path_only="${path_only#"$root"}"
+  path_only="$(ingo_crawl_resolve_path "$path_only")"
+  printf "%s%s%s\n" "$root" "$path_only" "$query"
 }
 
 ingo_crawl_extract_links() {
   local html_file="$1"
-  grep -Eoi '(href|src)=["'\''][^"'\'']+["'\'']' "$html_file" \
+  (grep -Eoi '(href|src)=["'\''][^"'\'']+["'\'']' "$html_file" || true) \
     | sed -E 's/^(href|src)=["'\'']([^"'\'']+)["'\'']$/\2/' \
     | awk 'NF' \
     | sort -u
