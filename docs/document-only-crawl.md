@@ -45,6 +45,7 @@ Common exclusions:
 - images/icons (`png`, `jpg`, `svg`, `ico`, ...)
 - frontend assets (`js`, `css`, fonts)
 - social/login/generic non-document pages
+- malformed URLs (spaces, bad schemes, invalid host section)
 
 ## Output Files
 
@@ -59,6 +60,7 @@ Common exclusions:
 jq -r '.status' data/corpus/manifests/gdb_documents.ndjson | sort | uniq -c
 jq -r '.reason' data/corpus/manifests/gdb_skipped.ndjson | sort | uniq -c
 jq -r '.error' data/corpus/manifests/gdb_errors.ndjson | sort | uniq -c
+jq -c 'select(.reason=="malformed_url")' data/corpus/manifests/gdb_skipped.ndjson | sed -n '1,20p'
 find data/corpus/downloads -type f | sed -n '1,50p'
 ```
 
