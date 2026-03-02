@@ -97,6 +97,22 @@ Seed-crawl discovery (corpus mode via `fetch`):
 bin/ingo fetch --seeds data/corpus/seeds/seed_urls.txt --crawl-depth 2 --allow-hosts data/corpus/config/allow_hosts.txt
 ```
 
+Manual curation before indexing:
+
+```bash
+# review downloaded corpus files
+find data/corpus/downloads -type f | sort
+# remove files you do not want indexed
+rm -f "data/corpus/downloads/unwanted-file.pdf"
+```
+
+Index curated corpus using existing pipeline:
+
+```bash
+bin/ingo chunk --no-strict
+bin/ingo embed
+```
+
 Query-only device:
 
 ```bash
@@ -196,3 +212,4 @@ Key coverage areas:
 ## Roadmap / Improvements
 
 See [IMPROVEMENTS.md](IMPROVEMENTS.md) for ongoing improvement notes.
+See [docs/corpus-fetch-workflow.md](docs/corpus-fetch-workflow.md) for the crawl-enabled fetch workflow.
