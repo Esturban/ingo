@@ -172,6 +172,11 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_EXCLUDE_EXTENSIONS` | No | `zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi` | Comma-separated denylist for crawl filtering. |
 | `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
 | `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
+
+Spreadsheet handling:
+
+- `.xlsx` and `.xlsm` are downloaded and, when Python `openpyxl` is available, converted to text tables in extraction so they can be chunked/embedded.
+- If `openpyxl` is unavailable, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
 | `INGO_HTTP_RETRY_ATTEMPTS` | No | `2` | Number of retry attempts for retriable failures. |

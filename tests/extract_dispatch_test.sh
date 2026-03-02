@@ -40,7 +40,12 @@ while [ "$#" -gt 0 ]; do
 done
 printf "pandoc text" > "$out"
 MOCK
-  chmod +x "$dir/pdftotext" "$dir/pandoc"
+  cat > "$dir/python3" <<'MOCK'
+#!/usr/bin/env bash
+out="$3"
+printf "## SHEET: Mock\na\tb\n" > "$out"
+MOCK
+  chmod +x "$dir/pdftotext" "$dir/pandoc" "$dir/python3"
 }
 
 test_extract_routing() {
@@ -67,9 +72,9 @@ JSON
   PATH="$tmp:$PATH"
   summary="$(ingo_extract_manifest_documents "$manifest" "$extracted")"
 
-  assert_contains "$summary" "extracted=3" "supported formats extracted"
-  assert_contains "$summary" "unsupported=1" "unsupported format tracked"
-  assert_contains "$(cat "$manifest")" '"status":"unsupported"' "manifest updates unsupported status"
+  assert_contains "$summary" "extracted=4" "supported formats extracted"
+  assert_contains "$summary" "unsupported=0" "no unsupported formats in fixture"
+  assert_contains "$(cat "$manifest")" '"status":"extracted"' "manifest updates extracted status"
 }
 
 main() {
