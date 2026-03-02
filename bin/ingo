@@ -187,7 +187,7 @@ cmd_fetch() {
       INGO_PROGRESS_EVERY="$progress_step" INGO_CRAWL_VERBOSE="$verbose" \
       ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
     collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"
-    extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$corpus_root/extracted")"
+    extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$ROOT_DIR/$INGO_RAW_DIR")"
     visited_count="$(wc -l < "$urls_file" | tr -d ' ')"
     doc_candidate_count="$(grep -Eic '\.(pdf|docx?|html?|xlsx?|xlsm)(\?|$)' "$urls_file" || true)"
 
