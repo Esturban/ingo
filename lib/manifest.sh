@@ -15,6 +15,12 @@ ingo_manifest_append_record() {
   printf "%s\n" "$record_json" | jq -c '.' >> "$manifest"
 }
 
+ingo_manifest_reset() {
+  local manifest="$1"
+  mkdir -p "$(dirname "$manifest")"
+  : > "$manifest"
+}
+
 ingo_manifest_find_first_by_hash() {
   local manifest="$1"
   local content_sha256="$2"

@@ -215,8 +215,11 @@ ingo_crawl_discover_urls() {
   local corpus_root manifest_file downloads_dir collect_summary
   corpus_root="$(cd "$work_dir/.." && pwd)"
   manifest_file="${INGO_MANIFEST_FILE:-$corpus_root/manifests/documents.ndjson}"
+  local skipped_file errors_file
+  skipped_file="${INGO_SKIPPED_FILE:-$corpus_root/manifests/gdb_skipped.ndjson}"
+  errors_file="${INGO_ERRORS_FILE:-$corpus_root/manifests/gdb_errors.ndjson}"
   downloads_dir="${INGO_DOWNLOADS_DIR:-$corpus_root/downloads}"
-  collect_summary="$(ingo_crawl_collect_documents "$out_urls_file" "$manifest_file" "$downloads_dir")"
+  collect_summary="$(ingo_crawl_collect_documents "$out_urls_file" "$manifest_file" "$downloads_dir" "" "$skipped_file" "$errors_file")"
   printf "%s\n" "$collect_summary" > "$work_dir/collect-summary.txt"
 }
 
@@ -283,44 +286,127 @@ ingo_crawl_ext_from_content_type() {
   esac
 }
 
+ingo_crawl_append_skipped() {
+  local skipped_file="$1"
+  local url="$2"
+  local canonical_url="$3"
+  local source_page="$4"
+  local reason="$5"
+  local file_ext="$6"
+  local content_type="${7:-}"
+  local ts
+  ts="$(ingo_crawl_timestamp_utc)"
+  ingo_manifest_append_record "$skipped_file" "$(jq -cn \
+    --arg url "$url" \
+    --arg canonical_url "$canonical_url" \
+    --arg source_page "$source_page" \
+    --arg reason "$reason" \
+    --arg file_ext "$file_ext" \
+    --arg content_type "$content_type" \
+    --arg timestamp "$ts" \
+    '{
+      url: $url,
+      canonical_url: $canonical_url,
+      source_page: $source_page,
+      reason: $reason,
+      file_ext: $file_ext,
+      content_type: $content_type,
+      timestamp: $timestamp
+    }')"
+}
+
+ingo_crawl_append_error() {
+  local errors_file="$1"
+  local url="$2"
+  local canonical_url="$3"
+  local source_page="$4"
+  local http_status="$5"
+  local error="$6"
+  local ts
+  ts="$(ingo_crawl_timestamp_utc)"
+  ingo_manifest_append_record "$errors_file" "$(jq -cn \
+    --arg url "$url" \
+    --arg canonical_url "$canonical_url" \
+    --arg source_page "$source_page" \
+    --arg http_status "$http_status" \
+    --arg error "$error" \
+    --arg timestamp "$ts" \
+    '{
+      url: $url,
+      canonical_url: $canonical_url,
+      source_page: $source_page,
+      http_status: (if $http_status == "" then 0 else ($http_status|tonumber) end),
+      error: $error,
+      timestamp: $timestamp
+    }')"
+}
+
 ingo_crawl_collect_documents() {
   local urls_file="$1"
   local manifest_file="$2"
   local downloads_dir="$3"
   local discovered_from="${4:-}"
+  local skipped_file="${5:-}"
+  local errors_file="${6:-}"
   local url ext host out_name out_path fetched_at
   local content_sha doc_id duplicate_of mime_type bytes status local_path
-  local probe_content_type probe
-  local downloaded_count=0 duplicate_count=0 failed_count=0
+  local probe_status probe_content_type probe
+  local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
   local canonical_doc_id
 
   mkdir -p "$downloads_dir"
   ingo_manifest_init "$manifest_file"
+  [ -n "$skipped_file" ] && ingo_manifest_init "$skipped_file"
+  [ -n "$errors_file" ] && ingo_manifest_init "$errors_file"
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
     if ingo_url_matches_deny_pattern "$url"; then
+      skipped_count=$((skipped_count + 1))
+      [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "deny_pattern" "$ext" ""
       continue
     fi
 
     ext="$(ingo_file_ext_from_url "$url")"
     if [ -n "$ext" ] && ingo_is_excluded_extension "$ext"; then
+      skipped_count=$((skipped_count + 1))
+      [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "excluded_extension" "$ext" ""
       continue
     fi
     if [ -z "$ext" ] || ! ingo_is_document_extension "$ext"; then
       probe="$(ingo_crawl_probe_url "$url")"
+      probe_status="${probe%%$'\t'*}"
       probe_content_type="${probe#*$'\t'}"
       probe_content_type="${probe_content_type%%$'\t'*}"
+      if [ -n "$probe_status" ] && [ "$probe_status" -ge 400 ]; then
+        failed_count=$((failed_count + 1))
+        [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "$probe_status" "http_error"
+        continue
+      fi
       if ! ingo_crawl_mime_is_document "$probe_content_type"; then
+        skipped_count=$((skipped_count + 1))
+        [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "not_document" "$ext" "$probe_content_type"
         continue
       fi
       ext="$(ingo_crawl_ext_from_content_type "$probe_content_type")"
-      [ -n "$ext" ] || continue
+      if [ -z "$ext" ]; then
+        skipped_count=$((skipped_count + 1))
+        [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "unknown_mime" "" "$probe_content_type"
+        continue
+      fi
     else
       probe="$(ingo_crawl_probe_url "$url")"
+      probe_status="${probe%%$'\t'*}"
       probe_content_type="${probe#*$'\t'}"
       probe_content_type="${probe_content_type%%$'\t'*}"
+      if [ -n "$probe_status" ] && [ "$probe_status" -ge 400 ]; then
+        failed_count=$((failed_count + 1))
+        [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "$probe_status" "http_error"
+        continue
+      fi
       if [ -n "$probe_content_type" ] && ! ingo_crawl_mime_is_document "$probe_content_type"; then
+        skipped_count=$((skipped_count + 1))
+        [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "mime_mismatch" "$ext" "$probe_content_type"
         continue
       fi
     fi
@@ -331,35 +417,8 @@ ingo_crawl_collect_documents() {
     fetched_at="$(ingo_crawl_timestamp_utc)"
 
     if ! ingo_http_curl -fsSL "$url" -o "$out_path"; then
-      status="failed"
       failed_count=$((failed_count + 1))
-      ingo_manifest_append_record "$manifest_file" "$(jq -cn \
-        --arg status "$status" \
-        --arg source_url "$url" \
-        --arg discovered_from_url "$discovered_from" \
-        --arg host "$host" \
-        --arg mime_type "" \
-        --arg file_ext "$ext" \
-        --arg local_path "" \
-        --arg content_sha256 "" \
-        --arg fetched_at "$fetched_at" \
-        --arg last_seen_at "$fetched_at" \
-        --arg error "download_failed" \
-        '{
-          doc_id: "",
-          status: $status,
-          source_url: $source_url,
-          discovered_from_url: $discovered_from_url,
-          host: $host,
-          mime_type: $mime_type,
-          file_ext: $file_ext,
-          local_path: $local_path,
-          content_sha256: $content_sha256,
-          bytes: 0,
-          fetched_at: $fetched_at,
-          last_seen_at: $last_seen_at,
-          error: $error
-        }')"
+      [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "0" "download_failed"
       rm -f "$out_path"
       continue
     fi
@@ -413,5 +472,5 @@ ingo_crawl_collect_documents() {
       } + (if $duplicate_of != "" then {duplicate_of: $duplicate_of} else {} end)')"
   done < "$urls_file"
 
-  printf "downloaded=%s duplicate=%s failed=%s\n" "$downloaded_count" "$duplicate_count" "$failed_count"
+  printf "downloaded=%s duplicate=%s failed=%s skipped=%s\n" "$downloaded_count" "$duplicate_count" "$failed_count" "$skipped_count"
 }

@@ -147,7 +147,7 @@ cmd_fetch() {
   fi
 
   if [ -n "$seeds" ]; then
-    local depth allow_hosts_file manifest_file corpus_root crawl_root urls_file
+    local depth allow_hosts_file manifest_file skipped_file errors_file corpus_root crawl_root urls_file
     local visited_count doc_candidate_count collect_summary extract_summary
 
     [ -f "$seeds" ] || { echo "seeds file not found: $seeds" >&2; return 2; }
@@ -162,10 +162,15 @@ cmd_fetch() {
 
     allow_hosts_file="${allow_hosts:-$ROOT_DIR/$INGO_ALLOWED_HOSTS_FILE}"
     manifest_file="${manifest:-$corpus_root/manifests/documents.ndjson}"
+    skipped_file="$(dirname "$manifest_file")/gdb_skipped.ndjson"
+    errors_file="$(dirname "$manifest_file")/gdb_errors.ndjson"
     mkdir -p "$(dirname "$allow_hosts_file")" "$(dirname "$manifest_file")"
-    touch "$allow_hosts_file" "$manifest_file"
+    touch "$allow_hosts_file"
+    ingo_manifest_reset "$manifest_file"
+    ingo_manifest_reset "$skipped_file"
+    ingo_manifest_reset "$errors_file"
 
-    INGO_MANIFEST_FILE="$manifest_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
+    INGO_MANIFEST_FILE="$manifest_file" INGO_SKIPPED_FILE="$skipped_file" INGO_ERRORS_FILE="$errors_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
       ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
     collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"
     extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$corpus_root/extracted")"
