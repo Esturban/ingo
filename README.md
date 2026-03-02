@@ -186,6 +186,7 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
 | `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
 | `INGO_CRAWL_ALLOW_HTTP` | No | `0` | When `0`, crawl upgrades `http://` URLs to `https://` by default to avoid insecure/dead HTTP endpoints. |
+| `INGO_SKIP_PROBE_FOR_ALLOWED_EXTENSIONS` | No | `1` | When `1`, skip MIME probe round-trip for allowlisted extensions (`pdf/docx/xlsx/xlsm`) to speed up large runs. |
 
 Spreadsheet handling:
 

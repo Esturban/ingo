@@ -512,6 +512,18 @@ ingo_crawl_ext_from_content_type() {
   esac
 }
 
+ingo_crawl_mime_from_ext() {
+  local ext
+  ext="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$ext" in
+    pdf) printf "application/pdf\n" ;;
+    docx) printf "application/vnd.openxmlformats-officedocument.wordprocessingml.document\n" ;;
+    xlsx) printf "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n" ;;
+    xlsm) printf "application/vnd.ms-excel\n" ;;
+    *) printf "application/octet-stream\n" ;;
+  esac
+}
+
 ingo_crawl_append_skipped() {
   local skipped_file="$1"
   local url="$2"
@@ -577,6 +589,7 @@ ingo_crawl_collect_documents() {
   local url ext host out_name out_path tmp_out fetched_at stable_name
   local content_sha doc_id duplicate_of mime_type bytes status local_path final_url doc_id_suffix
   local probe_status probe_content_type probe_final_url probe
+  local skip_probe_for_allowed_ext
   local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
   local processed_count=0 total_count=0 progress_every verbose
   local canonical_doc_id
@@ -594,6 +607,7 @@ ingo_crawl_collect_documents() {
   fi
   progress_every="${INGO_PROGRESS_EVERY:-25}"
   verbose="${INGO_CRAWL_VERBOSE:-0}"
+  skip_probe_for_allowed_ext="${INGO_SKIP_PROBE_FOR_ALLOWED_EXTENSIONS:-1}"
   total_count="$(wc -l < "$urls_file" | tr -d ' ')"
   download_timeout="${INGO_HTTP_DOWNLOAD_TIMEOUT:-${INGO_HTTP_READ_TIMEOUT:-30}}"
   echo "collect-start: total_urls=$total_count" >&2
@@ -641,7 +655,13 @@ ingo_crawl_collect_documents() {
       [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "excluded_extension" "$ext" ""
       continue
     fi
-    if [ -z "$ext" ] || ! ingo_is_document_extension "$ext"; then
+    probe_status=""
+    probe_content_type=""
+    probe_final_url=""
+    if [ -n "$ext" ] && ingo_is_document_extension "$ext" && [ "$skip_probe_for_allowed_ext" = "1" ]; then
+      probe_content_type="$(ingo_crawl_mime_from_ext "$ext")"
+      probe_final_url="$url"
+    elif [ -z "$ext" ] || ! ingo_is_document_extension "$ext"; then
       probe="$(ingo_crawl_probe_url "$url")"
       probe_status="${probe%%$'\t'*}"
       probe_content_type="${probe#*$'\t'}"
