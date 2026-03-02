@@ -53,6 +53,15 @@ ingo_manifest_resolve_duplicate_doc_id() {
   printf "%s\n" "$existing" | jq -r '.doc_id // empty'
 }
 
+ingo_manifest_has_url() {
+  local manifest="$1"
+  local url="$2"
+  [ -s "$manifest" ] || return 1
+  jq -e --arg url "$url" '
+    select((.source_url // "") == $url or (.final_url // "") == $url or ((.aliases // []) | index($url) != null))
+  ' "$manifest" >/dev/null 2>&1
+}
+
 ingo_manifest_update_aliases() {
   local manifest="$1"
   local doc_id="$2"

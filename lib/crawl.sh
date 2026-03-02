@@ -557,6 +557,11 @@ ingo_crawl_collect_documents() {
       [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "malformed_url" "" ""
       continue
     fi
+    if ingo_manifest_has_url "$manifest_file" "$url"; then
+      skipped_count=$((skipped_count + 1))
+      [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "already_seen_url" "" ""
+      continue
+    fi
     ext=""
     if ingo_url_matches_deny_pattern "$url"; then
       skipped_count=$((skipped_count + 1))

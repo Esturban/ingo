@@ -44,7 +44,7 @@ ingo - shell runtime for Upstash Vector (ingest + query)
 
 Usage:
   ingo doctor
-  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--progress-every N] [--snapshot-pages] [--verbose] [--dir DIR]
+  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--progress-every N] [--snapshot-pages] [--verbose] [--reset-manifests] [--dir DIR]
   ingo ocr [--dir DIR]
   ingo chunk [--strict|--no-strict]
   ingo embed [--force]
@@ -99,6 +99,7 @@ cmd_fetch() {
   local progress_every=""
   local snapshot_pages=0
   local verbose=0
+  local reset_manifests=0
   local dir=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -138,6 +139,10 @@ cmd_fetch() {
         ;;
       --verbose)
         verbose=1
+        shift
+        ;;
+      --reset-manifests)
+        reset_manifests=1
         shift
         ;;
       --dir)
@@ -184,9 +189,15 @@ cmd_fetch() {
     errors_file="$(dirname "$manifest_file")/gdb_errors.ndjson"
     mkdir -p "$(dirname "$allow_hosts_file")" "$(dirname "$manifest_file")"
     touch "$allow_hosts_file"
-    ingo_manifest_reset "$manifest_file"
-    ingo_manifest_reset "$skipped_file"
-    ingo_manifest_reset "$errors_file"
+    if [ "$reset_manifests" -eq 1 ]; then
+      ingo_manifest_reset "$manifest_file"
+      ingo_manifest_reset "$skipped_file"
+      ingo_manifest_reset "$errors_file"
+    else
+      ingo_manifest_init "$manifest_file"
+      ingo_manifest_init "$skipped_file"
+      ingo_manifest_init "$errors_file"
+    fi
 
     if [ "$snapshot_pages" -eq 1 ]; then
       INGO_SNAPSHOT_PAGES_TO_PDF=1

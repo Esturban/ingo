@@ -69,7 +69,7 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 | Command | Purpose | Key Flags | Role Restriction |
 | --- | --- | --- | --- |
 | `bin/ingo doctor` | Validate dependencies and required env vars | none | Available in all roles (checks OCR stack only when role is not `query`) |
-| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--snapshot-pages`, `--verbose`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
+| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--snapshot-pages`, `--verbose`, `--reset-manifests`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo ocr` | OCR PDFs into `data/raw/*.txt` | `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo chunk` | Convert OCR text to chunk JSONL | `--strict`, `--no-strict` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo embed` | Upsert chunks into Upstash Vector | `--force` | Blocked when `INGO_ROLE=query` |
@@ -101,6 +101,11 @@ bin/ingo fetch \
   --manifest data/corpus/manifests/gdb_documents.ndjson \
   --progress-every 10
 ```
+
+Notes:
+- Seed crawl is append-only by default for manifests/ledgers (no automatic reset).
+- Already-seen URLs in the manifest are skipped (reason: `already_seen_url`).
+- Use `--reset-manifests` only when you explicitly want a clean ledger for a new run.
 
 Optional fallback to export eligible pages as PDF when no document links are found on a page:
 

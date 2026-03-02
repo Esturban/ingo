@@ -18,6 +18,12 @@ Optional:
 bin/ingo fetch ... --progress-every 25 --verbose
 ```
 
+Reset run ledgers only when needed:
+
+```bash
+bin/ingo fetch ... --reset-manifests
+```
+
 Optional page snapshot fallback (requires `wkhtmltopdf`):
 
 ```bash
@@ -53,6 +59,8 @@ Common exclusions:
 - Skipped ledger: `data/corpus/manifests/gdb_skipped.ndjson`
 - Error ledger: `data/corpus/manifests/gdb_errors.ndjson`
 - Downloaded files: `data/corpus/downloads/`
+
+By default manifests are append-only, and URLs already present in the accepted manifest are skipped with reason `already_seen_url`.
 
 ## Inspect Results
 
