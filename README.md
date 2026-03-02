@@ -94,7 +94,11 @@ bin/ingo run --url "https://example.com/doc.pdf" --strict
 Seed-crawl discovery (corpus mode via `fetch`):
 
 ```bash
-bin/ingo fetch --seeds data/corpus/seeds/seed_urls.txt --crawl-depth 2 --allow-hosts data/corpus/config/allow_hosts.txt
+bin/ingo fetch \
+  --seeds data/corpus/seeds/seed_url.txt \
+  --crawl-depth 2 \
+  --allow-hosts data/corpus/config/allowlist.txt \
+  --manifest data/corpus/manifests/gdb_documents.ndjson
 ```
 
 Manual curation before indexing:
@@ -111,6 +115,14 @@ Index curated corpus using existing pipeline:
 ```bash
 bin/ingo chunk --no-strict
 bin/ingo embed
+```
+
+Inspect crawl ledgers:
+
+```bash
+jq -r '.status' data/corpus/manifests/gdb_documents.ndjson | sort | uniq -c
+jq -r '.reason' data/corpus/manifests/gdb_skipped.ndjson | sort | uniq -c
+jq -r '.error' data/corpus/manifests/gdb_errors.ndjson | sort | uniq -c
 ```
 
 Query-only device:
@@ -216,3 +228,4 @@ Key coverage areas:
 
 See [IMPROVEMENTS.md](IMPROVEMENTS.md) for ongoing improvement notes.
 See [docs/corpus-fetch-workflow.md](docs/corpus-fetch-workflow.md) for the crawl-enabled fetch workflow.
+See [docs/document-only-crawl.md](docs/document-only-crawl.md) for document-only vector-ready crawl behavior.
