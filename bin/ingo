@@ -25,6 +25,9 @@ source "$ROOT_DIR/lib/ocr.sh"
 # shellcheck source=../lib/chunk.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/chunk.sh"
+# shellcheck source=../lib/extract.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/extract.sh"
 # shellcheck source=../lib/embed.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/embed.sh"
@@ -145,7 +148,7 @@ cmd_fetch() {
 
   if [ -n "$seeds" ]; then
     local depth allow_hosts_file manifest_file corpus_root crawl_root urls_file
-    local visited_count doc_candidate_count
+    local visited_count doc_candidate_count collect_summary extract_summary
 
     [ -f "$seeds" ] || { echo "seeds file not found: $seeds" >&2; return 2; }
 
@@ -162,7 +165,10 @@ cmd_fetch() {
     mkdir -p "$(dirname "$allow_hosts_file")" "$(dirname "$manifest_file")"
     touch "$allow_hosts_file" "$manifest_file"
 
-    ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
+    INGO_MANIFEST_FILE="$manifest_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
+      ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
+    collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"
+    extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$corpus_root/extracted")"
     visited_count="$(wc -l < "$urls_file" | tr -d ' ')"
     doc_candidate_count="$(grep -Eic '\.(pdf|docx?|html?|xlsx?|xlsm)(\?|$)' "$urls_file" || true)"
 
@@ -172,6 +178,8 @@ cmd_fetch() {
     echo "manifest: $manifest_file"
     echo "crawl-discovered: $visited_count"
     echo "crawl-doc-candidates: $doc_candidate_count"
+    [ -n "$collect_summary" ] && echo "crawl-download-summary: $collect_summary"
+    [ -n "$extract_summary" ] && echo "crawl-extract-summary: $extract_summary"
     echo "crawl-output: $urls_file"
     return 0
   fi

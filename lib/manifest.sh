@@ -64,3 +64,21 @@ ingo_manifest_update_aliases() {
   ' "$manifest" > "$tmp"
   mv "$tmp" "$manifest"
 }
+
+ingo_manifest_update_doc() {
+  local manifest="$1"
+  local doc_id="$2"
+  local patch_json="$3"
+  local tmp
+
+  [ -s "$manifest" ] || return 1
+  tmp="$(mktemp)"
+  jq -c --arg doc_id "$doc_id" --argjson patch "$patch_json" '
+    if (.doc_id // "") == $doc_id then
+      . + $patch
+    else
+      .
+    end
+  ' "$manifest" > "$tmp"
+  mv "$tmp" "$manifest"
+}
