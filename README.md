@@ -69,7 +69,7 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 | Command | Purpose | Key Flags | Role Restriction |
 | --- | --- | --- | --- |
 | `bin/ingo doctor` | Validate dependencies and required env vars | none | Available in all roles (checks OCR stack only when role is not `query`) |
-| `bin/ingo fetch` | Discover PDFs in inbox and optionally download one URL | `--url URL`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
+| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--snapshot-pages`, `--verbose`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo ocr` | OCR PDFs into `data/raw/*.txt` | `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo chunk` | Convert OCR text to chunk JSONL | `--strict`, `--no-strict` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo embed` | Upsert chunks into Upstash Vector | `--force` | Blocked when `INGO_ROLE=query` |
@@ -89,6 +89,52 @@ URL one-shot ingest:
 
 ```bash
 bin/ingo run --url "https://example.com/doc.pdf" --strict
+```
+
+Seed-crawl discovery (corpus mode via `fetch`):
+
+```bash
+bin/ingo fetch \
+  --seeds data/corpus/seeds/seed_url.txt \
+  --crawl-depth 2 \
+  --allow-hosts data/corpus/config/allowlist.txt \
+  --manifest data/corpus/manifests/gdb_documents.ndjson \
+  --progress-every 10
+```
+
+Optional fallback to export eligible pages as PDF when no document links are found on a page:
+
+```bash
+bin/ingo fetch \
+  --seeds data/corpus/seeds/seed_url.txt \
+  --crawl-depth 2 \
+  --allow-hosts data/corpus/config/allowlist.txt \
+  --manifest data/corpus/manifests/gdb_documents.ndjson \
+  --snapshot-pages
+```
+
+Manual curation before indexing:
+
+```bash
+# review downloaded corpus files
+find data/corpus/downloads -type f | sort
+# remove files you do not want indexed
+rm -f "data/corpus/downloads/unwanted-file.pdf"
+```
+
+Index curated corpus using existing pipeline:
+
+```bash
+bin/ingo chunk --no-strict
+bin/ingo embed
+```
+
+Inspect crawl ledgers:
+
+```bash
+jq -r '.status' data/corpus/manifests/gdb_documents.ndjson | sort | uniq -c
+jq -r '.reason' data/corpus/manifests/gdb_skipped.ndjson | sort | uniq -c
+jq -r '.error' data/corpus/manifests/gdb_errors.ndjson | sort | uniq -c
 ```
 
 Query-only device:
@@ -119,6 +165,19 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_MIN_TERM_MATCHES` | No | `2` | Minimum term matches for strict relevance gate. |
 | `INGO_REJECTED_DIR` | No | `data/rejected` | Directory for rejected raw text files. |
 | `INGO_RELEVANCE_TERMS` | No | `ambiental,licencia,vertimiento,emision,resolucion,decreto,articulo,autoridad,ministerio,agua,suelo,aire` | Comma-separated relevance terms. |
+| `INGO_CORPUS_DIR` | No | `data/corpus` | Base directory for crawl state, downloaded documents, extracted text, and manifests. |
+| `INGO_CRAWL_DEPTH` | No | `2` | Maximum crawl depth used by `fetch --seeds`. |
+| `INGO_ALLOWED_HOSTS_FILE` | No | `data/corpus/config/allow_hosts.txt` | Host allowlist path used by `fetch --seeds` in addition to `.gov.co` domains. |
+| `INGO_INCLUDE_EXTENSIONS` | No | `pdf,docx,xlsx,xlsm` | Comma-separated allowlist for document-only crawl downloads. |
+| `INGO_EXCLUDE_EXTENSIONS` | No | `zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi` | Comma-separated denylist for crawl filtering. |
+| `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
+| `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
+
+Spreadsheet handling:
+
+- `.xlsx` and `.xlsm` are downloaded and converted to text for chunking/embedding.
+- Extraction priority is `xlsx2csv` -> `in2csv` -> Python `openpyxl` fallback.
+- If none are available, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
 | `INGO_HTTP_RETRY_ATTEMPTS` | No | `2` | Number of retry attempts for retriable failures. |
@@ -187,3 +246,5 @@ Key coverage areas:
 ## Roadmap / Improvements
 
 See [IMPROVEMENTS.md](IMPROVEMENTS.md) for ongoing improvement notes.
+See [docs/corpus-fetch-workflow.md](docs/corpus-fetch-workflow.md) for the crawl-enabled fetch workflow.
+See [docs/document-only-crawl.md](docs/document-only-crawl.md) for document-only vector-ready crawl behavior.

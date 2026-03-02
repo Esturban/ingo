@@ -10,15 +10,24 @@ source "$ROOT_DIR/lib/env.sh"
 # shellcheck source=../lib/fetch.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/fetch.sh"
+# shellcheck source=../lib/manifest.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/manifest.sh"
 # shellcheck source=../lib/http.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
+# shellcheck source=../lib/crawl.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/crawl.sh"
 # shellcheck source=../lib/ocr.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/ocr.sh"
 # shellcheck source=../lib/chunk.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/chunk.sh"
+# shellcheck source=../lib/extract.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/extract.sh"
 # shellcheck source=../lib/embed.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/embed.sh"
@@ -35,7 +44,7 @@ ingo - shell runtime for Upstash Vector (ingest + query)
 
 Usage:
   ingo doctor
-  ingo fetch [--url URL] [--dir DIR]
+  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--progress-every N] [--snapshot-pages] [--verbose] [--dir DIR]
   ingo ocr [--dir DIR]
   ingo chunk [--strict|--no-strict]
   ingo embed [--force]
@@ -54,6 +63,7 @@ doctor() {
   ingo_require_positive_integer "INGO_HTTP_RETRY_BACKOFF_MAX" "$INGO_HTTP_RETRY_BACKOFF_MAX"
   ingo_require_positive_integer "INGO_HTTP_RETRY_BACKOFF_FACTOR" "$INGO_HTTP_RETRY_BACKOFF_FACTOR"
   ingo_require_nonnegative_integer "INGO_HTTP_RETRY_AFTER_MAX" "$INGO_HTTP_RETRY_AFTER_MAX"
+  ingo_require_positive_integer "INGO_CRAWL_DEPTH" "$INGO_CRAWL_DEPTH"
   ingo_require_bin curl
   ingo_require_bin jq
   ingo_require_env
@@ -82,6 +92,13 @@ cmd_fetch() {
   ingo_require_bin curl
 
   local url=""
+  local seeds=""
+  local crawl_depth=""
+  local allow_hosts=""
+  local manifest=""
+  local progress_every=""
+  local snapshot_pages=0
+  local verbose=0
   local dir=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -89,6 +106,39 @@ cmd_fetch() {
         [ "$#" -ge 2 ] || { echo "missing value for --url" >&2; return 2; }
         url="$2"
         shift 2
+        ;;
+      --seeds)
+        [ "$#" -ge 2 ] || { echo "missing value for --seeds" >&2; return 2; }
+        seeds="$2"
+        shift 2
+        ;;
+      --crawl-depth)
+        [ "$#" -ge 2 ] || { echo "missing value for --crawl-depth" >&2; return 2; }
+        crawl_depth="$2"
+        shift 2
+        ;;
+      --allow-hosts)
+        [ "$#" -ge 2 ] || { echo "missing value for --allow-hosts" >&2; return 2; }
+        allow_hosts="$2"
+        shift 2
+        ;;
+      --manifest)
+        [ "$#" -ge 2 ] || { echo "missing value for --manifest" >&2; return 2; }
+        manifest="$2"
+        shift 2
+        ;;
+      --progress-every)
+        [ "$#" -ge 2 ] || { echo "missing value for --progress-every" >&2; return 2; }
+        progress_every="$2"
+        shift 2
+        ;;
+      --snapshot-pages)
+        snapshot_pages=1
+        shift
+        ;;
+      --verbose)
+        verbose=1
+        shift
         ;;
       --dir)
         [ "$#" -ge 2 ] || { echo "missing value for --dir" >&2; return 2; }
@@ -106,6 +156,64 @@ cmd_fetch() {
     INGO_INBOX="$dir"
   fi
   ingo_prepare_dirs
+
+  if [ -n "$url" ] && [ -n "$seeds" ]; then
+    echo "invalid options: --url and --seeds are mutually exclusive" >&2
+    return 2
+  fi
+
+  if [ -n "$seeds" ]; then
+    local depth allow_hosts_file manifest_file skipped_file errors_file corpus_root crawl_root urls_file progress_step
+    local visited_count doc_candidate_count collect_summary extract_summary
+
+    [ -f "$seeds" ] || { echo "seeds file not found: $seeds" >&2; return 2; }
+
+    depth="${crawl_depth:-$INGO_CRAWL_DEPTH}"
+    ingo_require_positive_integer "crawl-depth" "$depth"
+    progress_step="${progress_every:-$INGO_PROGRESS_EVERY}"
+    ingo_require_positive_integer "progress-every" "$progress_step"
+
+    corpus_root="$ROOT_DIR/$INGO_CORPUS_DIR"
+    crawl_root="$corpus_root/crawl"
+    urls_file="$crawl_root/discovered-$(date +%Y%m%d-%H%M%S).txt"
+    mkdir -p "$crawl_root" "$corpus_root/manifests" "$corpus_root/downloads" "$corpus_root/extracted" "$corpus_root/config"
+
+    allow_hosts_file="${allow_hosts:-$ROOT_DIR/$INGO_ALLOWED_HOSTS_FILE}"
+    manifest_file="${manifest:-$corpus_root/manifests/documents.ndjson}"
+    skipped_file="$(dirname "$manifest_file")/gdb_skipped.ndjson"
+    errors_file="$(dirname "$manifest_file")/gdb_errors.ndjson"
+    mkdir -p "$(dirname "$allow_hosts_file")" "$(dirname "$manifest_file")"
+    touch "$allow_hosts_file"
+    ingo_manifest_reset "$manifest_file"
+    ingo_manifest_reset "$skipped_file"
+    ingo_manifest_reset "$errors_file"
+
+    if [ "$snapshot_pages" -eq 1 ]; then
+      INGO_SNAPSHOT_PAGES_TO_PDF=1
+    fi
+
+    INGO_MANIFEST_FILE="$manifest_file" INGO_SKIPPED_FILE="$skipped_file" INGO_ERRORS_FILE="$errors_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
+      INGO_SNAPSHOT_PAGES_TO_PDF="$INGO_SNAPSHOT_PAGES_TO_PDF" \
+      INGO_PROGRESS_EVERY="$progress_step" INGO_CRAWL_VERBOSE="$verbose" \
+      ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
+    collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"
+    extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$ROOT_DIR/$INGO_RAW_DIR")"
+    visited_count="$(wc -l < "$urls_file" | tr -d ' ')"
+    doc_candidate_count="$(grep -Eic '\.(pdf|docx?|html?|xlsx?|xlsm)(\?|$)' "$urls_file" || true)"
+
+    echo "crawl-seeds: $seeds"
+    echo "crawl-depth: $depth"
+    echo "allow-hosts: $allow_hosts_file"
+    echo "manifest: $manifest_file"
+    echo "skipped-ledger: $skipped_file"
+    echo "error-ledger: $errors_file"
+    echo "crawl-discovered: $visited_count"
+    echo "crawl-doc-candidates: $doc_candidate_count"
+    [ -n "$collect_summary" ] && echo "crawl-download-summary: $collect_summary"
+    [ -n "$extract_summary" ] && echo "crawl-extract-summary: $extract_summary"
+    echo "crawl-output: $urls_file"
+    return 0
+  fi
 
   if [ -n "$url" ]; then
     local file

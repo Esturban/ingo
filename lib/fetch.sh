@@ -20,6 +20,99 @@ ingo_list_pdfs() {
   find "$inbox" -maxdepth 1 -type f -iname '*.pdf' | sort
 }
 
+ingo_file_ext_from_url() {
+  local url="$1"
+  local path ext
+  path="${url%%\?*}"
+  path="${path%%#*}"
+  path="${path##*/}"
+  ext="${path##*.}"
+  if [ "$ext" = "$path" ]; then
+    printf "\n"
+    return 0
+  fi
+  printf "%s\n" "$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
+}
+
+ingo_csv_contains() {
+  local csv="$1"
+  local needle="$2"
+  local item
+  needle="$(printf "%s" "$needle" | tr '[:upper:]' '[:lower:]')"
+  IFS=',' read -r -a _items <<< "$csv"
+  for item in "${_items[@]}"; do
+    item="$(printf "%s" "$item" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$item" ] || continue
+    if [ "$item" = "$needle" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+ingo_is_document_extension() {
+  local ext="$1"
+  ext="$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
+  ingo_csv_contains "${INGO_INCLUDE_EXTENSIONS:-pdf,docx,xlsx,xlsm}" "$ext"
+}
+
+ingo_is_excluded_extension() {
+  local ext="$1"
+  ext="$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
+  ingo_csv_contains "${INGO_EXCLUDE_EXTENSIONS:-zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi}" "$ext"
+}
+
+ingo_url_matches_deny_pattern() {
+  local url
+  url="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$url" in
+    *linkedin.com*|*whatsapp.com*|*api.whatsapp.com*|*returnurl=*|*/security/*|*login*|\
+    */ciudadania/*|*/participacion*|*/comunicate*|*/pqrs*|*/noticias/*|*/tramites-y-servicios*|\
+    */images/*|*/media/*|*/templates/*|*/modules/*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+ingo_url_is_allowed_page_candidate() {
+  local url lc
+  url="$1"
+  lc="$(printf "%s" "$url" | tr '[:upper:]' '[:lower:]')"
+
+  if ingo_url_matches_deny_pattern "$lc"; then
+    return 1
+  fi
+
+  case "$lc" in
+    *informacion_geografica*|\
+    *sistema-de-informacion-geografica*|\
+    *modelo-de-almacenamiento-geografico*|\
+    *metadatos*|\
+    *geodesia*|\
+    *normograma*|\
+    *datos-abiertos*|\
+    *resolucion*)
+      return 0
+      ;;
+  esac
+
+  return 1
+}
+
+ingo_url_is_document_candidate() {
+  local ext url="$1"
+  if ingo_url_matches_deny_pattern "$url"; then
+    return 1
+  fi
+  ext="$(ingo_file_ext_from_url "$1")"
+  [ -n "$ext" ] || return 1
+  if ingo_is_excluded_extension "$ext"; then
+    return 1
+  fi
+  ingo_is_document_extension "$ext"
+}
+
 ingo_reserve_fetch_output() {
   local inbox="$1"
   local ts candidate pid
