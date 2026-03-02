@@ -35,6 +35,15 @@ ingo_crawl_resolve_path() {
   printf "%s\n" "$out"
 }
 
+ingo_crawl_prefer_https() {
+  local url="$1"
+  if [[ "$url" =~ ^http:// ]] && [ "${INGO_CRAWL_ALLOW_HTTP:-0}" != "1" ]; then
+    printf "%s\n" "https://${url#http://}"
+    return 0
+  fi
+  printf "%s\n" "$url"
+}
+
 ingo_crawl_extract_scheme_host() {
   local url="$1"
   if [[ "$url" =~ ^(https?)://([^/]+) ]]; then
@@ -74,6 +83,7 @@ ingo_crawl_normalize_url() {
   [ -n "$raw_url" ] || return 1
 
   if [[ "$raw_url" =~ ^https?:// ]]; then
+    raw_url="$(ingo_crawl_prefer_https "$raw_url")"
     parsed="$(ingo_crawl_extract_scheme_host "$raw_url" || true)"
     [ -n "$parsed" ] || return 1
     scheme="${parsed%%$'\t'*}"
@@ -189,12 +199,14 @@ ingo_crawl_discover_urls() {
     raw="${raw%%#*}"
     raw="$(printf "%s" "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     [ -n "$raw" ] || continue
+    raw="$(ingo_crawl_prefer_https "$raw")"
     printf "0\t%s\t\n" "$raw" >> "$queue_file"
     queued_count=$((queued_count + 1))
   done < "$seeds_file"
 
   while IFS=$'\t' read -r depth url parent; do
     [ -n "$url" ] || continue
+    url="$(ingo_crawl_prefer_https "$url")"
     processed_count=$((processed_count + 1))
     if [ "$verbose" = "1" ]; then
       echo "crawl-url: depth=$depth url=$url"
