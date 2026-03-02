@@ -10,6 +10,9 @@ source "$ROOT_DIR/lib/env.sh"
 # shellcheck source=../lib/fetch.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/fetch.sh"
+# shellcheck source=../lib/manifest.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/manifest.sh"
 # shellcheck source=../lib/http.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
