@@ -243,6 +243,46 @@ ingo_crawl_timestamp_utc() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
 
+ingo_crawl_probe_url() {
+  local url="$1"
+  local out
+  out="$(
+    curl -sSIL -o /dev/null \
+      --connect-timeout "${INGO_HTTP_CONNECT_TIMEOUT:-5}" \
+      --max-time "${INGO_HTTP_READ_TIMEOUT:-30}" \
+      -w '%{http_code}\t%{content_type}\t%{url_effective}' \
+      "$url" 2>/dev/null || true
+  )"
+  [ -n "$out" ] || out=$'000\t\t'
+  printf "%s\n" "$out"
+}
+
+ingo_crawl_mime_is_document() {
+  local content_type
+  content_type="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$content_type" in
+    application/pdf*|\
+    application/vnd.openxmlformats-officedocument*|\
+    application/vnd.ms-excel*|\
+    application/msword*)
+      return 0
+      ;;
+  esac
+  return 1
+}
+
+ingo_crawl_ext_from_content_type() {
+  local content_type
+  content_type="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$content_type" in
+    application/pdf*) printf "pdf\n" ;;
+    application/vnd.openxmlformats-officedocument.wordprocessingml.document*) printf "docx\n" ;;
+    application/vnd.openxmlformats-officedocument.spreadsheetml.sheet*) printf "xlsx\n" ;;
+    application/vnd.ms-excel*) printf "xlsx\n" ;;
+    *) printf "\n" ;;
+  esac
+}
+
 ingo_crawl_collect_documents() {
   local urls_file="$1"
   local manifest_file="$2"
@@ -250,6 +290,7 @@ ingo_crawl_collect_documents() {
   local discovered_from="${4:-}"
   local url ext host out_name out_path fetched_at
   local content_sha doc_id duplicate_of mime_type bytes status local_path
+  local probe_content_type probe
   local downloaded_count=0 duplicate_count=0 failed_count=0
   local canonical_doc_id
 
@@ -258,11 +299,32 @@ ingo_crawl_collect_documents() {
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
-    if ! ingo_url_is_document_candidate "$url"; then
+    if ingo_url_matches_deny_pattern "$url"; then
       continue
     fi
 
     ext="$(ingo_file_ext_from_url "$url")"
+    if [ -n "$ext" ] && ingo_is_excluded_extension "$ext"; then
+      continue
+    fi
+    if [ -z "$ext" ] || ! ingo_is_document_extension "$ext"; then
+      probe="$(ingo_crawl_probe_url "$url")"
+      probe_content_type="${probe#*$'\t'}"
+      probe_content_type="${probe_content_type%%$'\t'*}"
+      if ! ingo_crawl_mime_is_document "$probe_content_type"; then
+        continue
+      fi
+      ext="$(ingo_crawl_ext_from_content_type "$probe_content_type")"
+      [ -n "$ext" ] || continue
+    else
+      probe="$(ingo_crawl_probe_url "$url")"
+      probe_content_type="${probe#*$'\t'}"
+      probe_content_type="${probe_content_type%%$'\t'*}"
+      if [ -n "$probe_content_type" ] && ! ingo_crawl_mime_is_document "$probe_content_type"; then
+        continue
+      fi
+    fi
+
     host="$(ingo_crawl_url_host "$url")"
     out_name="$(ingo_crawl_download_file_name "$url")"
     out_path="$downloads_dir/$out_name"
@@ -304,7 +366,7 @@ ingo_crawl_collect_documents() {
 
     content_sha="$(ingo_file_sha256 "$out_path")"
     bytes="$(ingo_file_size_bytes "$out_path")"
-    mime_type="application/octet-stream"
+    mime_type="${probe_content_type:-application/octet-stream}"
     doc_id="sha256:$content_sha"
     canonical_doc_id="$(ingo_manifest_resolve_duplicate_doc_id "$manifest_file" "$content_sha" || true)"
     local_path="${out_path#"$ROOT_DIR"/}"
