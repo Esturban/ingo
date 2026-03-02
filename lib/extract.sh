@@ -64,6 +64,28 @@ PY
   [ -s "$output_file" ] || return 1
 }
 
+ingo_extract_spreadsheet_with_cli() {
+  local input_file="$1"
+  local output_file="$2"
+
+  if command -v xlsx2csv >/dev/null 2>&1; then
+    if xlsx2csv "$input_file" "$output_file" >/dev/null 2>&1; then
+      [ -s "$output_file" ] && return 0
+    fi
+    if xlsx2csv "$input_file" > "$output_file" 2>/dev/null; then
+      [ -s "$output_file" ] && return 0
+    fi
+  fi
+
+  if command -v in2csv >/dev/null 2>&1; then
+    if in2csv "$input_file" > "$output_file" 2>/dev/null; then
+      [ -s "$output_file" ] && return 0
+    fi
+  fi
+
+  return 1
+}
+
 ingo_extract_file_text() {
   local input_file="$1"
   local file_ext="$2"
@@ -92,7 +114,9 @@ ingo_extract_file_text() {
       fi
       ;;
     xlsx|xlsm)
-      ingo_extract_spreadsheet_with_python "$input_file" "$output_file" || return 10
+      if ! ingo_extract_spreadsheet_with_cli "$input_file" "$output_file"; then
+        ingo_extract_spreadsheet_with_python "$input_file" "$output_file" || return 10
+      fi
       ;;
     *)
       return 10

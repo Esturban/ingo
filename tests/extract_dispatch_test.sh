@@ -40,12 +40,20 @@ while [ "$#" -gt 0 ]; do
 done
 printf "pandoc text" > "$out"
 MOCK
+  cat > "$dir/xlsx2csv" <<'MOCK'
+#!/usr/bin/env bash
+if [ "$#" -ge 2 ]; then
+  printf "h1,h2\nv1,v2\n" > "$2"
+else
+  printf "h1,h2\nv1,v2\n"
+fi
+MOCK
   cat > "$dir/python3" <<'MOCK'
 #!/usr/bin/env bash
 out="$3"
 printf "## SHEET: Mock\na\tb\n" > "$out"
 MOCK
-  chmod +x "$dir/pdftotext" "$dir/pandoc" "$dir/python3"
+  chmod +x "$dir/pdftotext" "$dir/pandoc" "$dir/xlsx2csv" "$dir/python3"
 }
 
 test_extract_routing() {
