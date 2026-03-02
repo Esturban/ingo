@@ -18,6 +18,52 @@ ingo_extract_docx_fallback() {
   return 1
 }
 
+ingo_extract_spreadsheet_with_python() {
+  local input_file="$1"
+  local output_file="$2"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    return 1
+  fi
+
+  if ! python3 - "$input_file" "$output_file" <<'PY'
+import sys
+from pathlib import Path
+
+input_path = Path(sys.argv[1])
+output_path = Path(sys.argv[2])
+
+try:
+    import openpyxl
+except Exception:
+    raise SystemExit(1)
+
+try:
+    wb = openpyxl.load_workbook(input_path, data_only=True, read_only=True)
+except Exception:
+    raise SystemExit(1)
+
+with output_path.open("w", encoding="utf-8") as f:
+    for sheet in wb.worksheets:
+        f.write(f"## SHEET: {sheet.title}\n")
+        for row in sheet.iter_rows(values_only=True):
+            vals = []
+            for cell in row:
+                if cell is None:
+                    vals.append("")
+                else:
+                    vals.append(str(cell).replace("\t", " ").replace("\n", " "))
+            if any(v.strip() for v in vals):
+                f.write("\t".join(vals).rstrip() + "\n")
+        f.write("\n")
+PY
+  then
+    return 1
+  fi
+
+  [ -s "$output_file" ] || return 1
+}
+
 ingo_extract_file_text() {
   local input_file="$1"
   local file_ext="$2"
@@ -44,6 +90,9 @@ ingo_extract_file_text() {
       else
         ingo_extract_html_fallback "$input_file" "$output_file"
       fi
+      ;;
+    xlsx|xlsm)
+      ingo_extract_spreadsheet_with_python "$input_file" "$output_file" || return 10
       ;;
     *)
       return 10
