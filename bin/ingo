@@ -16,6 +16,9 @@ source "$ROOT_DIR/lib/manifest.sh"
 # shellcheck source=../lib/http.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
+# shellcheck source=../lib/crawl.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/crawl.sh"
 # shellcheck source=../lib/ocr.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/ocr.sh"
