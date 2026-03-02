@@ -258,6 +258,20 @@ ingo_crawl_download_file_name() {
   printf "%s\n" "$base"
 }
 
+ingo_crawl_build_stable_doc_name() {
+  local original_name="$1"
+  local content_sha="$2"
+  local base ext short
+  base="$original_name"
+  ext=""
+  if [[ "$original_name" == *.* ]]; then
+    ext=".${original_name##*.}"
+    base="${original_name%.*}"
+  fi
+  short="$(printf "%s" "$content_sha" | cut -c1-10)"
+  printf "%s-%s%s\n" "$base" "$short" "$ext"
+}
+
 ingo_crawl_timestamp_utc() {
   date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
@@ -364,7 +378,7 @@ ingo_crawl_collect_documents() {
   local discovered_from="${4:-}"
   local skipped_file="${5:-}"
   local errors_file="${6:-}"
-  local url ext host out_name out_path fetched_at
+  local url ext host out_name out_path tmp_out fetched_at stable_name
   local content_sha doc_id duplicate_of mime_type bytes status local_path
   local probe_status probe_content_type probe
   local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
@@ -429,21 +443,23 @@ ingo_crawl_collect_documents() {
 
     host="$(ingo_crawl_url_host "$url")"
     out_name="$(ingo_crawl_download_file_name "$url")"
-    out_path="$downloads_dir/$out_name"
+    tmp_out="$(mktemp "$downloads_dir/.tmp-download.XXXXXX")"
     fetched_at="$(ingo_crawl_timestamp_utc)"
 
-    if ! ingo_http_curl -fsSL "$url" -o "$out_path"; then
+    if ! ingo_http_curl -fsSL "$url" -o "$tmp_out"; then
       failed_count=$((failed_count + 1))
       [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "0" "download_failed"
-      rm -f "$out_path"
+      rm -f "$tmp_out"
       continue
     fi
 
-    content_sha="$(ingo_file_sha256 "$out_path")"
-    bytes="$(ingo_file_size_bytes "$out_path")"
+    content_sha="$(ingo_file_sha256 "$tmp_out")"
+    bytes="$(ingo_file_size_bytes "$tmp_out")"
     mime_type="${probe_content_type:-application/octet-stream}"
     doc_id="sha256:$content_sha"
     canonical_doc_id="$(ingo_manifest_resolve_duplicate_doc_id "$manifest_file" "$content_sha" || true)"
+    stable_name="$(ingo_crawl_build_stable_doc_name "$out_name" "$content_sha")"
+    out_path="$downloads_dir/$stable_name"
     local_path="${out_path#"$ROOT_DIR"/}"
 
     if [ -n "$canonical_doc_id" ]; then
@@ -451,41 +467,29 @@ ingo_crawl_collect_documents() {
       status="duplicate"
       duplicate_count=$((duplicate_count + 1))
       ingo_manifest_update_aliases "$manifest_file" "$canonical_doc_id" "$url" || true
-      rm -f "$out_path"
+      rm -f "$tmp_out"
     else
       duplicate_of=""
       status="downloaded"
       downloaded_count=$((downloaded_count + 1))
+      mv -f "$tmp_out" "$out_path"
     fi
 
-    ingo_manifest_append_record "$manifest_file" "$(jq -cn \
-      --arg doc_id "$doc_id" \
-      --arg status "$status" \
-      --arg source_url "$url" \
-      --arg discovered_from_url "$discovered_from" \
-      --arg host "$host" \
-      --arg mime_type "$mime_type" \
-      --arg file_ext "$ext" \
-      --arg local_path "$local_path" \
-      --arg content_sha256 "$content_sha" \
-      --arg bytes "$bytes" \
-      --arg fetched_at "$fetched_at" \
-      --arg last_seen_at "$fetched_at" \
-      --arg duplicate_of "$duplicate_of" \
-      '{
-        doc_id: $doc_id,
-        status: $status,
-        source_url: $source_url,
-        discovered_from_url: $discovered_from_url,
-        host: $host,
-        mime_type: $mime_type,
-        file_ext: $file_ext,
-        local_path: $local_path,
-        content_sha256: $content_sha256,
-        bytes: ($bytes|tonumber),
-        fetched_at: $fetched_at,
-        last_seen_at: $last_seen_at
-      } + (if $duplicate_of != "" then {duplicate_of: $duplicate_of} else {} end)')"
+    ingo_manifest_append_doc_record \
+      "$manifest_file" \
+      "$doc_id" \
+      "$status" \
+      "$url" \
+      "$discovered_from" \
+      "$host" \
+      "$mime_type" \
+      "$ext" \
+      "$local_path" \
+      "$content_sha" \
+      "$bytes" \
+      "$fetched_at" \
+      "$fetched_at" \
+      "$duplicate_of"
   done < "$urls_file"
 
   printf "downloaded=%s duplicate=%s failed=%s skipped=%s\n" "$downloaded_count" "$duplicate_count" "$failed_count" "$skipped_count"

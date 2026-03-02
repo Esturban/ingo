@@ -88,3 +88,49 @@ ingo_manifest_update_doc() {
   ' "$manifest" > "$tmp"
   mv "$tmp" "$manifest"
 }
+
+ingo_manifest_append_doc_record() {
+  local manifest="$1"
+  local doc_id="$2"
+  local status="$3"
+  local source_url="$4"
+  local discovered_from_url="$5"
+  local host="$6"
+  local mime_type="$7"
+  local file_ext="$8"
+  local local_path="$9"
+  local content_sha256="${10}"
+  local bytes="${11}"
+  local fetched_at="${12}"
+  local last_seen_at="${13}"
+  local duplicate_of="${14:-}"
+
+  ingo_manifest_append_record "$manifest" "$(jq -cn \
+    --arg doc_id "$doc_id" \
+    --arg status "$status" \
+    --arg source_url "$source_url" \
+    --arg discovered_from_url "$discovered_from_url" \
+    --arg host "$host" \
+    --arg mime_type "$mime_type" \
+    --arg file_ext "$file_ext" \
+    --arg local_path "$local_path" \
+    --arg content_sha256 "$content_sha256" \
+    --arg bytes "$bytes" \
+    --arg fetched_at "$fetched_at" \
+    --arg last_seen_at "$last_seen_at" \
+    --arg duplicate_of "$duplicate_of" \
+    '{
+      doc_id: $doc_id,
+      status: $status,
+      source_url: $source_url,
+      discovered_from_url: $discovered_from_url,
+      host: $host,
+      mime_type: $mime_type,
+      file_ext: $file_ext,
+      local_path: $local_path,
+      content_sha256: $content_sha256,
+      bytes: ($bytes|tonumber),
+      fetched_at: $fetched_at,
+      last_seen_at: $last_seen_at
+    } + (if $duplicate_of != "" then {duplicate_of: $duplicate_of} else {} end)')"
+}
