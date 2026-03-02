@@ -20,6 +20,34 @@ ingo_list_pdfs() {
   find "$inbox" -maxdepth 1 -type f -iname '*.pdf' | sort
 }
 
+ingo_file_ext_from_url() {
+  local url="$1"
+  local path ext
+  path="${url%%\?*}"
+  path="${path%%#*}"
+  path="${path##*/}"
+  ext="${path##*.}"
+  if [ "$ext" = "$path" ]; then
+    printf "\n"
+    return 0
+  fi
+  printf "%s\n" "$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
+}
+
+ingo_is_document_extension() {
+  case "$1" in
+    pdf|doc|docx|xls|xlsx|xlsm|htm|html) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+ingo_url_is_document_candidate() {
+  local ext
+  ext="$(ingo_file_ext_from_url "$1")"
+  [ -n "$ext" ] || return 1
+  ingo_is_document_extension "$ext"
+}
+
 ingo_reserve_fetch_output() {
   local inbox="$1"
   local ts candidate pid
