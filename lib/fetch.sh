@@ -34,17 +34,57 @@ ingo_file_ext_from_url() {
   printf "%s\n" "$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
 }
 
+ingo_csv_contains() {
+  local csv="$1"
+  local needle="$2"
+  local item
+  needle="$(printf "%s" "$needle" | tr '[:upper:]' '[:lower:]')"
+  IFS=',' read -r -a _items <<< "$csv"
+  for item in "${_items[@]}"; do
+    item="$(printf "%s" "$item" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "$item" ] || continue
+    if [ "$item" = "$needle" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 ingo_is_document_extension() {
-  case "$1" in
-    pdf|doc|docx|xls|xlsx|xlsm|htm|html) return 0 ;;
-    *) return 1 ;;
+  local ext="$1"
+  ext="$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
+  ingo_csv_contains "${INGO_INCLUDE_EXTENSIONS:-pdf,docx,xlsx,xlsm}" "$ext"
+}
+
+ingo_is_excluded_extension() {
+  local ext="$1"
+  ext="$(printf "%s" "$ext" | tr '[:upper:]' '[:lower:]')"
+  ingo_csv_contains "${INGO_EXCLUDE_EXTENSIONS:-zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi}" "$ext"
+}
+
+ingo_url_matches_deny_pattern() {
+  local url
+  url="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$url" in
+    *linkedin.com*|*whatsapp.com*|*api.whatsapp.com*|*returnurl=*|*/security/*|*login*|\
+    */ciudadania/*|*/participacion*|*/comunicate*|*/pqrs*|*/noticias/*|*/tramites-y-servicios*|\
+    */images/*|*/media/*|*/templates/*|*/modules/*)
+      return 0
+      ;;
   esac
+  return 1
 }
 
 ingo_url_is_document_candidate() {
-  local ext
+  local ext url="$1"
+  if ingo_url_matches_deny_pattern "$url"; then
+    return 1
+  fi
   ext="$(ingo_file_ext_from_url "$1")"
   [ -n "$ext" ] || return 1
+  if ingo_is_excluded_extension "$ext"; then
+    return 1
+  fi
   ingo_is_document_extension "$ext"
 }
 
