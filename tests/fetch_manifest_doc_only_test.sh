@@ -63,6 +63,7 @@ https://a.gov.co/doc.pdf
 https://a.gov.co/logo.png
 https://a.gov.co/home.html
 https://a.gov.co/doc bad.pdf
+https://a.gov.co/doc%GZ.pdf
 URLS
 
   ingo_crawl_collect_documents "$urls" "$manifest" "$tmp/downloads" "" "$skipped" "$errors" >/dev/null
@@ -72,6 +73,7 @@ URLS
     fail "manifest should only include pdf in fixture"
   fi
   jq -e 'select(.reason=="malformed_url")' "$skipped" >/dev/null || fail "malformed URLs should be skipped with reason"
+  [ "$(jq -r 'select(.reason=="malformed_url") | .url' "$skipped" | wc -l | tr -d ' ')" -ge 2 ] || fail "expected malformed_url entries for space and bad percent encoding"
 }
 
 main() { test_manifest_doc_only; echo ok; }

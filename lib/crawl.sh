@@ -64,6 +64,9 @@ ingo_crawl_is_malformed_url() {
   [[ "$url" =~ ^https?:// ]] || return 0
   [[ "$url" =~ [[:space:]] ]] && return 0
   [[ "$url" == *"|"* ]] && return 0
+  if printf "%s" "$url" | grep -Eq '%($|[^0-9A-Fa-f]|.[^0-9A-Fa-f])'; then
+    return 0
+  fi
   [[ "$url" =~ ^https?://[^/?#]+ ]] || return 0
   return 1
 }
@@ -206,17 +209,19 @@ ingo_crawl_discover_urls() {
   local allow_hosts_file="$3"
   local out_urls_file="$4"
   local work_dir="$5"
-  local queue_file visited_file pages_dir
+  local queue_file visited_file queued_file pages_dir
   local line depth url parent parsed host page_file next_depth candidate raw
   local candidate_ext page_doc_candidates snapshot_tmp
   local processed_count=0 queued_count=0 start_ts now elapsed progress_every verbose
 
   queue_file="$work_dir/queue.tsv"
   visited_file="$work_dir/visited.txt"
+  queued_file="$work_dir/queued.txt"
   pages_dir="$work_dir/pages"
   mkdir -p "$work_dir" "$pages_dir"
   : > "$queue_file"
   : > "$visited_file"
+  : > "$queued_file"
   : > "$out_urls_file"
 
   start_ts="$(date +%s)"
@@ -231,7 +236,11 @@ ingo_crawl_discover_urls() {
     if ingo_crawl_is_malformed_url "$raw"; then
       continue
     fi
+    if grep -Fqx "$raw" "$queued_file"; then
+      continue
+    fi
     printf "0\t%s\t\n" "$raw" >> "$queue_file"
+    printf "%s\n" "$raw" >> "$queued_file"
     queued_count=$((queued_count + 1))
   done < "$seeds_file"
 
@@ -309,7 +318,11 @@ ingo_crawl_discover_urls() {
       if grep -Fqx "$candidate" "$visited_file"; then
         continue
       fi
+      if grep -Fqx "$candidate" "$queued_file"; then
+        continue
+      fi
       printf "%s\t%s\t%s\n" "$next_depth" "$candidate" "$url" >> "$queue_file"
+      printf "%s\n" "$candidate" >> "$queued_file"
       queued_count=$((queued_count + 1))
     done < <(ingo_crawl_extract_links "$page_file")
 
