@@ -172,6 +172,7 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_EXCLUDE_EXTENSIONS` | No | `zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi` | Comma-separated denylist for crawl filtering. |
 | `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
 | `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
+| `INGO_CRAWL_ALLOW_HTTP` | No | `0` | When `0`, crawl upgrades `http://` URLs to `https://` by default to avoid insecure/dead HTTP endpoints. |
 
 Spreadsheet handling:
 
