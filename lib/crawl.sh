@@ -543,11 +543,16 @@ ingo_crawl_collect_documents() {
   local probe_status probe_content_type probe_final_url probe
   local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
   local canonical_doc_id
+  local run_doc_ids_file="${INGO_NEW_DOC_IDS_FILE:-}"
 
   mkdir -p "$downloads_dir"
   ingo_manifest_init "$manifest_file"
   [ -n "$skipped_file" ] && ingo_manifest_init "$skipped_file"
   [ -n "$errors_file" ] && ingo_manifest_init "$errors_file"
+  if [ -n "$run_doc_ids_file" ]; then
+    mkdir -p "$(dirname "$run_doc_ids_file")"
+    : > "$run_doc_ids_file"
+  fi
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
@@ -650,6 +655,9 @@ ingo_crawl_collect_documents() {
       status="downloaded"
       downloaded_count=$((downloaded_count + 1))
       mv -f "$tmp_out" "$out_path"
+      if [ -n "$run_doc_ids_file" ]; then
+        printf "%s\n" "$doc_id" >> "$run_doc_ids_file"
+      fi
     fi
 
     ingo_manifest_append_doc_record \
