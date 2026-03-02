@@ -35,7 +35,8 @@ Allowed extensions:
 
 Spreadsheet extraction:
 
-- `xlsx/xlsm` are converted into plain text table rows when `python3` + `openpyxl` is available.
+- `xlsx/xlsm` are converted into plain text table rows using `xlsx2csv` or `in2csv` when available.
+- Fallback is `python3` + `openpyxl`.
 - Converted text is written into the extraction/chunk pipeline, so spreadsheet content can enter the vector index.
 
 Common exclusions:
