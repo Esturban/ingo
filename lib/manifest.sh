@@ -43,6 +43,15 @@ ingo_manifest_find_doc_by_id() {
   ' 2>/dev/null | head -n 1
 }
 
+ingo_manifest_find_local_path_by_doc_id() {
+  local manifest="$1"
+  local doc_id="$2"
+  local row
+  row="$(ingo_manifest_find_doc_by_id "$manifest" "$doc_id" || true)"
+  [ -n "$row" ] || return 1
+  printf "%s\n" "$row" | jq -r '.local_path // ""' | awk 'NF{print; exit}'
+}
+
 ingo_manifest_resolve_duplicate_doc_id() {
   local manifest="$1"
   local content_sha256="$2"
@@ -60,6 +69,16 @@ ingo_manifest_has_url() {
   jq -e --arg url "$url" '
     select((.source_url // "") == $url or (.final_url // "") == $url or ((.aliases // []) | index($url) != null))
   ' "$manifest" >/dev/null 2>&1
+}
+
+ingo_manifest_find_local_path_by_url() {
+  local manifest="$1"
+  local url="$2"
+  [ -s "$manifest" ] || return 1
+  jq -r --arg url "$url" '
+    select((.source_url // "") == $url or (.final_url // "") == $url or ((.aliases // []) | index($url) != null))
+    | (.local_path // "")
+  ' "$manifest" | awk 'NF{print; exit}'
 }
 
 ingo_manifest_update_aliases() {

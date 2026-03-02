@@ -61,6 +61,12 @@ Common exclusions:
 - Downloaded files: `data/corpus/downloads/`
 
 By default manifests are append-only, and URLs already present in the accepted manifest are skipped with reason `already_seen_url`.
+Host policy for discovery is derived from seed hosts plus `--allow-hosts`.
+
+Progress phases during run:
+- `crawl-progress`: discover + queue
+- `collect-progress`: probe + download
+- `extract-progress`: extraction
 
 ## Inspect Results
 

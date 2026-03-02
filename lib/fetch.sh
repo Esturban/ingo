@@ -76,31 +76,6 @@ ingo_url_matches_deny_pattern() {
   return 1
 }
 
-ingo_url_is_allowed_page_candidate() {
-  local url lc
-  url="$1"
-  lc="$(printf "%s" "$url" | tr '[:upper:]' '[:lower:]')"
-
-  if ingo_url_matches_deny_pattern "$lc"; then
-    return 1
-  fi
-
-  case "$lc" in
-    *informacion_geografica*|\
-    *sistema-de-informacion-geografica*|\
-    *modelo-de-almacenamiento-geografico*|\
-    *metadatos*|\
-    *geodesia*|\
-    *normograma*|\
-    *datos-abiertos*|\
-    *resolucion*)
-      return 0
-      ;;
-  esac
-
-  return 1
-}
-
 ingo_url_is_document_candidate() {
   local ext url="$1"
   if ingo_url_matches_deny_pattern "$url"; then

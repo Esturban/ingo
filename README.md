@@ -106,7 +106,14 @@ Notes:
 - Seed crawl is append-only by default for manifests/ledgers (no automatic reset).
 - Already-seen URLs in the manifest are skipped (reason: `already_seen_url`).
 - Extraction in `fetch --seeds` is scoped to files downloaded in the current run.
+- Host policy in seed crawl is `seed hosts + --allow-hosts` (merged into a runtime allow-hosts file).
 - Use `--reset-manifests` only when you explicitly want a clean ledger for a new run.
+
+Runtime visibility:
+- `crawl-progress`: discovery/queue phase counters.
+- `collect-progress`: probe/download phase counters.
+- `extract-progress`: extraction phase counters.
+- End-of-run reason breakdowns are printed from skipped/error ledgers.
 
 Optional fallback to export eligible pages as PDF when no document links are found on a page:
 
@@ -173,7 +180,7 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_RELEVANCE_TERMS` | No | `ambiental,licencia,vertimiento,emision,resolucion,decreto,articulo,autoridad,ministerio,agua,suelo,aire` | Comma-separated relevance terms. |
 | `INGO_CORPUS_DIR` | No | `data/corpus` | Base directory for crawl state, downloaded documents, extracted text, and manifests. |
 | `INGO_CRAWL_DEPTH` | No | `2` | Maximum crawl depth used by `fetch --seeds`. |
-| `INGO_ALLOWED_HOSTS_FILE` | No | `data/corpus/config/allow_hosts.txt` | Host allowlist path used by `fetch --seeds` in addition to `.gov.co` domains. |
+| `INGO_ALLOWED_HOSTS_FILE` | No | `data/corpus/config/allow_hosts.txt` | Extra hosts merged with seed hosts for runtime crawl allow policy. |
 | `INGO_INCLUDE_EXTENSIONS` | No | `pdf,docx,xlsx,xlsm` | Comma-separated allowlist for document-only crawl downloads. |
 | `INGO_EXCLUDE_EXTENSIONS` | No | `zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi` | Comma-separated denylist for crawl filtering. |
 | `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
@@ -187,6 +194,7 @@ Spreadsheet handling:
 - If none are available, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
+| `INGO_HTTP_DOWNLOAD_TIMEOUT` | No | `120` | HTTP max time for document downloads (seconds). |
 | `INGO_HTTP_RETRY_ATTEMPTS` | No | `2` | Number of retry attempts for retriable failures. |
 | `INGO_HTTP_RETRY_BACKOFF_MIN` | No | `1` | Initial retry backoff (seconds). |
 | `INGO_HTTP_RETRY_BACKOFF_MAX` | No | `8` | Maximum retry backoff (seconds). |

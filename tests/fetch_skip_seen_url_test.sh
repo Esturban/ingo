@@ -61,6 +61,12 @@ URLS
   echo "$summary" | grep -F "downloaded=0" >/dev/null || fail "second run should not redownload"
   echo "$summary" | grep -F "skipped=1" >/dev/null || fail "second run should skip seen url"
   jq -e 'select(.reason=="already_seen_url")' "$skipped" >/dev/null || fail "skip ledger should record already_seen_url"
+
+  # If the local file is missing, rerun should download again.
+  rm -f "$downloads"/*.pdf
+  summary="$(ingo_crawl_collect_documents "$urls" "$manifest" "$downloads" "" "$skipped" "$errors")"
+  echo "$summary" | grep -F "duplicate=1" >/dev/null || fail "missing local file should trigger re-fetch even if hash is duplicate"
+  [ "$(find "$downloads" -type f | wc -l | tr -d ' ')" -ge 1 ] || fail "re-fetch should restore file in downloads dir"
 }
 
 main
