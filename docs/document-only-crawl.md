@@ -18,6 +18,12 @@ Optional:
 bin/ingo fetch ... --progress-every 25 --verbose
 ```
 
+Optional page snapshot fallback (requires `wkhtmltopdf`):
+
+```bash
+bin/ingo fetch ... --snapshot-pages
+```
+
 ## What Gets Downloaded
 
 Allowed extensions:
