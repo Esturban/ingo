@@ -44,7 +44,7 @@ ingo - shell runtime for Upstash Vector (ingest + query)
 
 Usage:
   ingo doctor
-  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--dir DIR]
+  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--progress-every N] [--verbose] [--dir DIR]
   ingo ocr [--dir DIR]
   ingo chunk [--strict|--no-strict]
   ingo embed [--force]
@@ -96,6 +96,8 @@ cmd_fetch() {
   local crawl_depth=""
   local allow_hosts=""
   local manifest=""
+  local progress_every=""
+  local verbose=0
   local dir=""
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -124,6 +126,15 @@ cmd_fetch() {
         manifest="$2"
         shift 2
         ;;
+      --progress-every)
+        [ "$#" -ge 2 ] || { echo "missing value for --progress-every" >&2; return 2; }
+        progress_every="$2"
+        shift 2
+        ;;
+      --verbose)
+        verbose=1
+        shift
+        ;;
       --dir)
         [ "$#" -ge 2 ] || { echo "missing value for --dir" >&2; return 2; }
         dir="$2"
@@ -147,13 +158,15 @@ cmd_fetch() {
   fi
 
   if [ -n "$seeds" ]; then
-    local depth allow_hosts_file manifest_file skipped_file errors_file corpus_root crawl_root urls_file
+    local depth allow_hosts_file manifest_file skipped_file errors_file corpus_root crawl_root urls_file progress_step
     local visited_count doc_candidate_count collect_summary extract_summary
 
     [ -f "$seeds" ] || { echo "seeds file not found: $seeds" >&2; return 2; }
 
     depth="${crawl_depth:-$INGO_CRAWL_DEPTH}"
     ingo_require_positive_integer "crawl-depth" "$depth"
+    progress_step="${progress_every:-$INGO_PROGRESS_EVERY}"
+    ingo_require_positive_integer "progress-every" "$progress_step"
 
     corpus_root="$ROOT_DIR/$INGO_CORPUS_DIR"
     crawl_root="$corpus_root/crawl"
@@ -171,6 +184,7 @@ cmd_fetch() {
     ingo_manifest_reset "$errors_file"
 
     INGO_MANIFEST_FILE="$manifest_file" INGO_SKIPPED_FILE="$skipped_file" INGO_ERRORS_FILE="$errors_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
+      INGO_PROGRESS_EVERY="$progress_step" INGO_CRAWL_VERBOSE="$verbose" \
       ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
     collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"
     extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$corpus_root/extracted")"
@@ -181,6 +195,8 @@ cmd_fetch() {
     echo "crawl-depth: $depth"
     echo "allow-hosts: $allow_hosts_file"
     echo "manifest: $manifest_file"
+    echo "skipped-ledger: $skipped_file"
+    echo "error-ledger: $errors_file"
     echo "crawl-discovered: $visited_count"
     echo "crawl-doc-candidates: $doc_candidate_count"
     [ -n "$collect_summary" ] && echo "crawl-download-summary: $collect_summary"
