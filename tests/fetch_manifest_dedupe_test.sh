@@ -54,6 +54,7 @@ ingo_http_curl() {
 
 test_dedupe_by_hash() {
   local tmp manifest urls downloads summary downloaded duplicates
+  local canonical_id duplicate_id
   tmp="$(mktemp -d)"
   ROOT_DIR="$tmp"
   manifest="$tmp/documents.ndjson"
@@ -68,6 +69,13 @@ test_dedupe_by_hash() {
   assert_eq "$downloaded" "1" "first hash should be canonical download"
   assert_eq "$duplicates" "1" "second same hash should be duplicate"
   assert_eq "$(jq -r 'select(.status=="duplicate") | .duplicate_of' "$manifest" | wc -l | tr -d ' ')" "1" "duplicate record points to canonical"
+  canonical_id="$(jq -r 'select(.status=="downloaded") | .doc_id' "$manifest" | head -n 1)"
+  duplicate_id="$(jq -r 'select(.status=="duplicate") | .doc_id' "$manifest" | head -n 1)"
+  [ -n "$canonical_id" ] || fail "canonical doc id should exist"
+  [ -n "$duplicate_id" ] || fail "duplicate doc id should exist"
+  if [ "$canonical_id" = "$duplicate_id" ]; then
+    fail "duplicate rows must use unique doc_id to avoid cross-row status updates"
+  fi
 }
 
 main() {

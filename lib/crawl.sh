@@ -390,6 +390,7 @@ ingo_crawl_mime_is_document() {
   content_type="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
   case "$content_type" in
     application/pdf*|\
+    application/octet-stream*|\
     application/vnd.openxmlformats-officedocument*|\
     application/vnd.ms-excel*|\
     application/msword*)
@@ -474,7 +475,7 @@ ingo_crawl_collect_documents() {
   local skipped_file="${5:-}"
   local errors_file="${6:-}"
   local url ext host out_name out_path tmp_out fetched_at stable_name
-  local content_sha doc_id duplicate_of mime_type bytes status local_path final_url
+  local content_sha doc_id duplicate_of mime_type bytes status local_path final_url doc_id_suffix
   local probe_status probe_content_type probe_final_url probe
   local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
   local canonical_doc_id
@@ -562,6 +563,8 @@ ingo_crawl_collect_documents() {
     local_path="${out_path#"$ROOT_DIR"/}"
 
     if [ -n "$canonical_doc_id" ]; then
+      doc_id_suffix="$(printf "%s" "$url" | shasum -a 256 | awk '{print $1}' | cut -c1-10)"
+      doc_id="${doc_id}:dup-${doc_id_suffix}"
       duplicate_of="$canonical_doc_id"
       status="duplicate"
       duplicate_count=$((duplicate_count + 1))
