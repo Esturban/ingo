@@ -183,6 +183,7 @@ ingo_extract_manifest_documents() {
   progress_every="${INGO_PROGRESS_EVERY:-25}"
   verbose="${INGO_CRAWL_VERBOSE:-0}"
   total_count="$(jq -r 'select((.status // "") == "downloaded") | .doc_id' "$manifest_file" 2>/dev/null | wc -l | tr -d ' ')"
+  echo "extract-start: candidates=$total_count" >&2
 
   while IFS= read -r line; do
     [ -n "$line" ] || continue
@@ -204,8 +205,8 @@ ingo_extract_manifest_documents() {
     if [ "$verbose" = "1" ]; then
       echo "extract-doc: doc_id=$doc_id ext=$file_ext path=$local_path"
     fi
-    if [ $((processed_count % progress_every)) -eq 0 ]; then
-      echo "extract-progress: processed=$processed_count/$total_count extracted=$extracted_count unsupported=$unsupported_count failed=$failed_count"
+    if [ "$processed_count" -eq 1 ] || [ $((processed_count % progress_every)) -eq 0 ]; then
+      echo "extract-progress: processed=$processed_count/$total_count extracted=$extracted_count unsupported=$unsupported_count failed=$failed_count" >&2
     fi
 
     if [[ "$local_path" = /* ]]; then

@@ -280,6 +280,7 @@ ingo_crawl_discover_urls() {
     printf "%s\n" "$raw" >> "$queued_file"
     queued_count=$((queued_count + 1))
   done < "$seeds_file"
+  echo "crawl-start: queued=$queued_count depth=$max_depth" >&2
 
   while IFS=$'\t' read -r depth url parent; do
     [ -n "$url" ] || continue
@@ -292,10 +293,10 @@ ingo_crawl_discover_urls() {
     if [ "$verbose" = "1" ]; then
       echo "crawl-url: depth=$depth url=$url"
     fi
-    if [ $((processed_count % progress_every)) -eq 0 ]; then
+    if [ "$processed_count" -eq 1 ] || [ $((processed_count % progress_every)) -eq 0 ]; then
       now="$(date +%s)"
       elapsed=$((now - start_ts))
-      echo "crawl-progress: processed=$processed_count queued=$queued_count elapsed=${elapsed}s"
+      echo "crawl-progress: processed=$processed_count queued=$queued_count elapsed=${elapsed}s" >&2
     fi
     parsed="$(ingo_crawl_extract_scheme_host "$url" || true)"
     [ -n "$parsed" ] || continue
@@ -595,6 +596,7 @@ ingo_crawl_collect_documents() {
   verbose="${INGO_CRAWL_VERBOSE:-0}"
   total_count="$(wc -l < "$urls_file" | tr -d ' ')"
   download_timeout="${INGO_HTTP_DOWNLOAD_TIMEOUT:-${INGO_HTTP_READ_TIMEOUT:-30}}"
+  echo "collect-start: total_urls=$total_count" >&2
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
@@ -602,8 +604,8 @@ ingo_crawl_collect_documents() {
     if [ "$verbose" = "1" ]; then
       echo "collect-url: $url"
     fi
-    if [ $((processed_count % progress_every)) -eq 0 ]; then
-      echo "collect-progress: processed=$processed_count/$total_count downloaded=$downloaded_count duplicate=$duplicate_count failed=$failed_count skipped=$skipped_count"
+    if [ "$processed_count" -eq 1 ] || [ $((processed_count % progress_every)) -eq 0 ]; then
+      echo "collect-progress: processed=$processed_count/$total_count downloaded=$downloaded_count duplicate=$duplicate_count failed=$failed_count skipped=$skipped_count" >&2
     fi
     url="$(ingo_crawl_sanitize_url "$url")"
     if ingo_crawl_is_malformed_url "$url"; then
