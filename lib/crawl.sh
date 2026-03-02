@@ -194,6 +194,13 @@ ingo_crawl_discover_urls() {
       elapsed=$((now - start_ts))
       echo "crawl-progress: processed=$processed_count queued=$queued_count elapsed=${elapsed}s"
     fi
+    parsed="$(ingo_crawl_extract_scheme_host "$url" || true)"
+    [ -n "$parsed" ] || continue
+    host="${parsed#*$'\t'}"
+    if ! ingo_crawl_host_allowed "$host" "$allow_hosts_file"; then
+      continue
+    fi
+
     if grep -Fqx "$url" "$visited_file"; then
       continue
     fi
@@ -201,13 +208,6 @@ ingo_crawl_discover_urls() {
     printf "%s\n" "$url" >> "$out_urls_file"
 
     if [ "$depth" -ge "$max_depth" ]; then
-      continue
-    fi
-
-    parsed="$(ingo_crawl_extract_scheme_host "$url" || true)"
-    [ -n "$parsed" ] || continue
-    host="${parsed#*$'\t'}"
-    if ! ingo_crawl_host_allowed "$host" "$allow_hosts_file"; then
       continue
     fi
 
@@ -220,6 +220,25 @@ ingo_crawl_discover_urls() {
     while IFS= read -r raw; do
       candidate="$(ingo_crawl_normalize_url "$url" "$raw" || true)"
       [ -n "$candidate" ] || continue
+      parsed="$(ingo_crawl_extract_scheme_host "$candidate" || true)"
+      [ -n "$parsed" ] || continue
+      host="${parsed#*$'\t'}"
+      if ! ingo_crawl_host_allowed "$host" "$allow_hosts_file"; then
+        continue
+      fi
+      if ingo_url_matches_deny_pattern "$candidate"; then
+        continue
+      fi
+      local candidate_ext
+      candidate_ext="$(ingo_file_ext_from_url "$candidate")"
+      if [ -n "$candidate_ext" ] && ingo_is_excluded_extension "$candidate_ext"; then
+        continue
+      fi
+      if [ -z "$candidate_ext" ] || ! ingo_is_document_extension "$candidate_ext"; then
+        if ! ingo_url_is_allowed_page_candidate "$candidate"; then
+          continue
+        fi
+      fi
       if grep -Fqx "$candidate" "$visited_file"; then
         continue
       fi
@@ -379,8 +398,8 @@ ingo_crawl_collect_documents() {
   local skipped_file="${5:-}"
   local errors_file="${6:-}"
   local url ext host out_name out_path tmp_out fetched_at stable_name
-  local content_sha doc_id duplicate_of mime_type bytes status local_path
-  local probe_status probe_content_type probe
+  local content_sha doc_id duplicate_of mime_type bytes status local_path final_url
+  local probe_status probe_content_type probe_final_url probe
   local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
   local canonical_doc_id
 
@@ -391,6 +410,7 @@ ingo_crawl_collect_documents() {
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
+    ext=""
     if ingo_url_matches_deny_pattern "$url"; then
       skipped_count=$((skipped_count + 1))
       [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "deny_pattern" "$ext" ""
@@ -408,6 +428,7 @@ ingo_crawl_collect_documents() {
       probe_status="${probe%%$'\t'*}"
       probe_content_type="${probe#*$'\t'}"
       probe_content_type="${probe_content_type%%$'\t'*}"
+      probe_final_url="${probe##*$'\t'}"
       if [ -n "$probe_status" ] && [ "$probe_status" -ge 400 ]; then
         failed_count=$((failed_count + 1))
         [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "$probe_status" "http_error"
@@ -429,6 +450,7 @@ ingo_crawl_collect_documents() {
       probe_status="${probe%%$'\t'*}"
       probe_content_type="${probe#*$'\t'}"
       probe_content_type="${probe_content_type%%$'\t'*}"
+      probe_final_url="${probe##*$'\t'}"
       if [ -n "$probe_status" ] && [ "$probe_status" -ge 400 ]; then
         failed_count=$((failed_count + 1))
         [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "$probe_status" "http_error"
@@ -456,6 +478,7 @@ ingo_crawl_collect_documents() {
     content_sha="$(ingo_file_sha256 "$tmp_out")"
     bytes="$(ingo_file_size_bytes "$tmp_out")"
     mime_type="${probe_content_type:-application/octet-stream}"
+    final_url="${probe_final_url:-$url}"
     doc_id="sha256:$content_sha"
     canonical_doc_id="$(ingo_manifest_resolve_duplicate_doc_id "$manifest_file" "$content_sha" || true)"
     stable_name="$(ingo_crawl_build_stable_doc_name "$out_name" "$content_sha")"
@@ -480,6 +503,7 @@ ingo_crawl_collect_documents() {
       "$doc_id" \
       "$status" \
       "$url" \
+      "$final_url" \
       "$discovered_from" \
       "$host" \
       "$mime_type" \

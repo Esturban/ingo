@@ -94,21 +94,23 @@ ingo_manifest_append_doc_record() {
   local doc_id="$2"
   local status="$3"
   local source_url="$4"
-  local discovered_from_url="$5"
-  local host="$6"
-  local mime_type="$7"
-  local file_ext="$8"
-  local local_path="$9"
-  local content_sha256="${10}"
-  local bytes="${11}"
-  local fetched_at="${12}"
-  local last_seen_at="${13}"
-  local duplicate_of="${14:-}"
+  local final_url="$5"
+  local discovered_from_url="$6"
+  local host="$7"
+  local mime_type="$8"
+  local file_ext="$9"
+  local local_path="${10}"
+  local content_sha256="${11}"
+  local bytes="${12}"
+  local fetched_at="${13}"
+  local last_seen_at="${14}"
+  local duplicate_of="${15:-}"
 
   ingo_manifest_append_record "$manifest" "$(jq -cn \
     --arg doc_id "$doc_id" \
     --arg status "$status" \
     --arg source_url "$source_url" \
+    --arg final_url "$final_url" \
     --arg discovered_from_url "$discovered_from_url" \
     --arg host "$host" \
     --arg mime_type "$mime_type" \
@@ -123,6 +125,7 @@ ingo_manifest_append_doc_record() {
       doc_id: $doc_id,
       status: $status,
       source_url: $source_url,
+      final_url: $final_url,
       discovered_from_url: $discovered_from_url,
       host: $host,
       mime_type: $mime_type,

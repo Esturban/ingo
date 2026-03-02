@@ -53,11 +53,55 @@ ingo_extract_file_text() {
   [ -s "$output_file" ] || return 1
 }
 
+ingo_extract_write_meta_from_manifest_line() {
+  local manifest_line="$1"
+  local meta_file="$2"
+  local file_path folder_path file_name file_size_bytes file_hash
+  local doc_id source_url canonical_url content_sha256 issuer category sector norm_type norm_number norm_year tags
+
+  file_path="$(printf "%s" "$manifest_line" | jq -r '.local_path // ""')"
+  folder_path="$(dirname "$file_path")"
+  file_name="$(basename "$file_path")"
+  file_size_bytes="$(printf "%s" "$manifest_line" | jq -r '.bytes // 0')"
+  file_hash="$(printf "%s" "$manifest_line" | jq -r '.content_sha256 // ""')"
+  doc_id="$(printf "%s" "$manifest_line" | jq -r '.doc_id // ""')"
+  source_url="$(printf "%s" "$manifest_line" | jq -r '.source_url // ""')"
+  canonical_url="$(printf "%s" "$manifest_line" | jq -r '.final_url // .source_url // ""')"
+  content_sha256="$file_hash"
+  issuer="$(printf "%s" "$manifest_line" | jq -r '.issuer // ""')"
+  category="$(printf "%s" "$manifest_line" | jq -r '.category // ""')"
+  sector="$(printf "%s" "$manifest_line" | jq -r '.sector // ""')"
+  norm_type="$(printf "%s" "$manifest_line" | jq -r '.norm_type // ""')"
+  norm_number="$(printf "%s" "$manifest_line" | jq -r '.norm_number // ""')"
+  norm_year="$(printf "%s" "$manifest_line" | jq -r '.norm_year // ""')"
+  tags="$(printf "%s" "$manifest_line" | jq -r '(.tags // []) | join(",")')"
+
+  {
+    printf "file_path=%s\n" "$file_path"
+    printf "folder_path=%s\n" "$folder_path"
+    printf "file_name=%s\n" "$file_name"
+    printf "file_size_bytes=%s\n" "$file_size_bytes"
+    printf "file_mtime=0\n"
+    printf "file_hash=%s\n" "$file_hash"
+    printf "doc_id=%s\n" "$doc_id"
+    printf "source_url=%s\n" "$source_url"
+    printf "canonical_url=%s\n" "$canonical_url"
+    printf "content_sha256=%s\n" "$content_sha256"
+    printf "issuer=%s\n" "$issuer"
+    printf "category=%s\n" "$category"
+    printf "sector=%s\n" "$sector"
+    printf "norm_type=%s\n" "$norm_type"
+    printf "norm_number=%s\n" "$norm_number"
+    printf "norm_year=%s\n" "$norm_year"
+    printf "tags=%s\n" "$tags"
+  } > "$meta_file"
+}
+
 ingo_extract_manifest_documents() {
   local manifest_file="$1"
   local extracted_dir="$2"
   local extracted_count=0 unsupported_count=0 failed_count=0
-  local line doc_id local_path file_ext abs_input out_file rel_text_path
+  local line doc_id local_path file_ext abs_input out_file rel_text_path meta_file
 
   mkdir -p "$extracted_dir"
   [ -s "$manifest_file" ] || { printf "extracted=0 unsupported=0 failed=0\n"; return 0; }
@@ -87,9 +131,11 @@ ingo_extract_manifest_documents() {
     fi
 
     out_file="$extracted_dir/${doc_id#sha256:}.txt"
+    meta_file="${out_file%.txt}.meta"
     if ingo_extract_file_text "$abs_input" "$file_ext" "$out_file"; then
       rel_text_path="${out_file#"$ROOT_DIR"/}"
       extracted_count=$((extracted_count + 1))
+      ingo_extract_write_meta_from_manifest_line "$line" "$meta_file"
       ingo_manifest_update_doc "$manifest_file" "$doc_id" "$(jq -cn --arg text_path "$rel_text_path" '{status:"extracted", text_path:$text_path}')"
     else
       case "$?" in
