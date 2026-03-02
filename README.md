@@ -91,6 +91,12 @@ URL one-shot ingest:
 bin/ingo run --url "https://example.com/doc.pdf" --strict
 ```
 
+Seed-crawl discovery (corpus mode via `fetch`):
+
+```bash
+bin/ingo fetch --seeds data/corpus/seeds/seed_urls.txt --crawl-depth 2 --allow-hosts data/corpus/config/allow_hosts.txt
+```
+
 Query-only device:
 
 ```bash
