@@ -35,6 +35,7 @@ ingo_load_env() {
   : "${INGO_ROLE:=all}"
   : "${INGO_HTTP_CONNECT_TIMEOUT:=5}"
   : "${INGO_HTTP_READ_TIMEOUT:=30}"
+  : "${INGO_HTTP_DOWNLOAD_TIMEOUT:=120}"
 
   if [ -n "${INGO_HTTP_RETRY_ATTEMPTS:-}" ]; then
     :
