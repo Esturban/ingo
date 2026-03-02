@@ -69,7 +69,7 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 | Command | Purpose | Key Flags | Role Restriction |
 | --- | --- | --- | --- |
 | `bin/ingo doctor` | Validate dependencies and required env vars | none | Available in all roles (checks OCR stack only when role is not `query`) |
-| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or crawl seed pages into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
+| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--verbose`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo ocr` | OCR PDFs into `data/raw/*.txt` | `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo chunk` | Convert OCR text to chunk JSONL | `--strict`, `--no-strict` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo embed` | Upsert chunks into Upstash Vector | `--force` | Blocked when `INGO_ROLE=query` |
@@ -144,6 +144,9 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_CORPUS_DIR` | No | `data/corpus` | Base directory for crawl state, downloaded documents, extracted text, and manifests. |
 | `INGO_CRAWL_DEPTH` | No | `2` | Maximum crawl depth used by `fetch --seeds`. |
 | `INGO_ALLOWED_HOSTS_FILE` | No | `data/corpus/config/allow_hosts.txt` | Host allowlist path used by `fetch --seeds` in addition to `.gov.co` domains. |
+| `INGO_INCLUDE_EXTENSIONS` | No | `pdf,docx,xlsx,xlsm` | Comma-separated allowlist for document-only crawl downloads. |
+| `INGO_EXCLUDE_EXTENSIONS` | No | `zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi` | Comma-separated denylist for crawl filtering. |
+| `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
 | `INGO_HTTP_RETRY_ATTEMPTS` | No | `2` | Number of retry attempts for retriable failures. |
