@@ -44,7 +44,7 @@ ingo - shell runtime for Upstash Vector (ingest + query)
 
 Usage:
   ingo doctor
-  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--progress-every N] [--verbose] [--dir DIR]
+  ingo fetch [--url URL] [--seeds FILE] [--crawl-depth N] [--allow-hosts FILE] [--manifest FILE] [--progress-every N] [--snapshot-pages] [--verbose] [--dir DIR]
   ingo ocr [--dir DIR]
   ingo chunk [--strict|--no-strict]
   ingo embed [--force]
@@ -97,6 +97,7 @@ cmd_fetch() {
   local allow_hosts=""
   local manifest=""
   local progress_every=""
+  local snapshot_pages=0
   local verbose=0
   local dir=""
   while [ "$#" -gt 0 ]; do
@@ -130,6 +131,10 @@ cmd_fetch() {
         [ "$#" -ge 2 ] || { echo "missing value for --progress-every" >&2; return 2; }
         progress_every="$2"
         shift 2
+        ;;
+      --snapshot-pages)
+        snapshot_pages=1
+        shift
         ;;
       --verbose)
         verbose=1
@@ -183,7 +188,12 @@ cmd_fetch() {
     ingo_manifest_reset "$skipped_file"
     ingo_manifest_reset "$errors_file"
 
+    if [ "$snapshot_pages" -eq 1 ]; then
+      INGO_SNAPSHOT_PAGES_TO_PDF=1
+    fi
+
     INGO_MANIFEST_FILE="$manifest_file" INGO_SKIPPED_FILE="$skipped_file" INGO_ERRORS_FILE="$errors_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
+      INGO_SNAPSHOT_PAGES_TO_PDF="$INGO_SNAPSHOT_PAGES_TO_PDF" \
       INGO_PROGRESS_EVERY="$progress_step" INGO_CRAWL_VERBOSE="$verbose" \
       ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
     collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"

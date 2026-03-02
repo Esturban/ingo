@@ -69,7 +69,7 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 | Command | Purpose | Key Flags | Role Restriction |
 | --- | --- | --- | --- |
 | `bin/ingo doctor` | Validate dependencies and required env vars | none | Available in all roles (checks OCR stack only when role is not `query`) |
-| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--verbose`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
+| `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--snapshot-pages`, `--verbose`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo ocr` | OCR PDFs into `data/raw/*.txt` | `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo chunk` | Convert OCR text to chunk JSONL | `--strict`, `--no-strict` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo embed` | Upsert chunks into Upstash Vector | `--force` | Blocked when `INGO_ROLE=query` |
@@ -98,7 +98,19 @@ bin/ingo fetch \
   --seeds data/corpus/seeds/seed_url.txt \
   --crawl-depth 2 \
   --allow-hosts data/corpus/config/allowlist.txt \
-  --manifest data/corpus/manifests/gdb_documents.ndjson
+  --manifest data/corpus/manifests/gdb_documents.ndjson \
+  --progress-every 10
+```
+
+Optional fallback to export eligible pages as PDF when no document links are found on a page:
+
+```bash
+bin/ingo fetch \
+  --seeds data/corpus/seeds/seed_url.txt \
+  --crawl-depth 2 \
+  --allow-hosts data/corpus/config/allowlist.txt \
+  --manifest data/corpus/manifests/gdb_documents.ndjson \
+  --snapshot-pages
 ```
 
 Manual curation before indexing:
@@ -159,6 +171,7 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_INCLUDE_EXTENSIONS` | No | `pdf,docx,xlsx,xlsm` | Comma-separated allowlist for document-only crawl downloads. |
 | `INGO_EXCLUDE_EXTENSIONS` | No | `zip,png,jpg,jpeg,gif,webp,svg,ico,js,css,map,woff,woff2,ttf,eot,mp3,mp4,mov,avi` | Comma-separated denylist for crawl filtering. |
 | `INGO_PROGRESS_EVERY` | No | `25` | Print crawl progress every N processed URLs. |
+| `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
 | `INGO_HTTP_RETRY_ATTEMPTS` | No | `2` | Number of retry attempts for retriable failures. |

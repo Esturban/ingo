@@ -153,6 +153,15 @@ ingo_crawl_fetch_page() {
   ingo_http_curl -fsSL "$url" -o "$out_file"
 }
 
+ingo_crawl_snapshot_page_pdf() {
+  local url="$1"
+  local out_file="$2"
+  if ! command -v wkhtmltopdf >/dev/null 2>&1; then
+    return 127
+  fi
+  wkhtmltopdf -q "$url" "$out_file" >/dev/null 2>&1
+}
+
 ingo_crawl_discover_urls() {
   local seeds_file="$1"
   local max_depth="$2"
@@ -161,6 +170,7 @@ ingo_crawl_discover_urls() {
   local work_dir="$5"
   local queue_file visited_file pages_dir
   local line depth url parent parsed host page_file next_depth candidate raw
+  local candidate_ext page_doc_candidates snapshot_tmp
   local processed_count=0 queued_count=0 start_ts now elapsed progress_every verbose
 
   queue_file="$work_dir/queue.tsv"
@@ -211,12 +221,17 @@ ingo_crawl_discover_urls() {
       continue
     fi
 
+    if ingo_url_is_document_candidate "$url"; then
+      continue
+    fi
+
     page_file="$pages_dir/page-$(printf "%s" "$url" | shasum -a 256 | awk '{print $1}').html"
     if ! ingo_crawl_fetch_page "$url" "$page_file" >/dev/null 2>&1; then
       continue
     fi
 
     next_depth=$((depth + 1))
+    page_doc_candidates=0
     while IFS= read -r raw; do
       candidate="$(ingo_crawl_normalize_url "$url" "$raw" || true)"
       [ -n "$candidate" ] || continue
@@ -229,12 +244,13 @@ ingo_crawl_discover_urls() {
       if ingo_url_matches_deny_pattern "$candidate"; then
         continue
       fi
-      local candidate_ext
       candidate_ext="$(ingo_file_ext_from_url "$candidate")"
       if [ -n "$candidate_ext" ] && ingo_is_excluded_extension "$candidate_ext"; then
         continue
       fi
-      if [ -z "$candidate_ext" ] || ! ingo_is_document_extension "$candidate_ext"; then
+      if [ -n "$candidate_ext" ] && ingo_is_document_extension "$candidate_ext"; then
+        page_doc_candidates=$((page_doc_candidates + 1))
+      else
         if ! ingo_url_is_allowed_page_candidate "$candidate"; then
           continue
         fi
@@ -245,6 +261,15 @@ ingo_crawl_discover_urls() {
       printf "%s\t%s\t%s\n" "$next_depth" "$candidate" "$url" >> "$queue_file"
       queued_count=$((queued_count + 1))
     done < <(ingo_crawl_extract_links "$page_file")
+
+    if [ "${INGO_SNAPSHOT_PAGES_TO_PDF:-0}" = "1" ] && [ "$page_doc_candidates" -eq 0 ]; then
+      snapshot_tmp="$(mktemp "${INGO_DOWNLOADS_DIR:-$work_dir}/.tmp-snapshot.XXXXXX.pdf")"
+      if ingo_crawl_snapshot_page_pdf "$url" "$snapshot_tmp"; then
+        printf "%s\n" "$snapshot_tmp|$url" >> "$work_dir/snapshots.list"
+      else
+        rm -f "$snapshot_tmp"
+      fi
+    fi
   done < "$queue_file"
 
   local corpus_root manifest_file downloads_dir collect_summary
@@ -255,6 +280,57 @@ ingo_crawl_discover_urls() {
   errors_file="${INGO_ERRORS_FILE:-$corpus_root/manifests/gdb_errors.ndjson}"
   downloads_dir="${INGO_DOWNLOADS_DIR:-$corpus_root/downloads}"
   collect_summary="$(ingo_crawl_collect_documents "$out_urls_file" "$manifest_file" "$downloads_dir" "" "$skipped_file" "$errors_file")"
+  if [ -s "$work_dir/snapshots.list" ]; then
+    while IFS='|' read -r snapshot_path source_url; do
+      [ -n "$snapshot_path" ] || continue
+      [ -f "$snapshot_path" ] || continue
+      content_sha="$(ingo_file_sha256 "$snapshot_path")"
+      bytes="$(ingo_file_size_bytes "$snapshot_path")"
+      doc_id="sha256:$content_sha"
+      canonical_doc_id="$(ingo_manifest_resolve_duplicate_doc_id "$manifest_file" "$content_sha" || true)"
+      out_name="$(basename "$source_url" | sed 's/[^[:alnum:]_.-]/_/g')"
+      [ -n "$out_name" ] || out_name="page"
+      stable_name="$(ingo_crawl_build_stable_doc_name "$out_name.pdf" "$content_sha")"
+      out_path="$downloads_dir/$stable_name"
+      if [ -n "$canonical_doc_id" ]; then
+        rm -f "$snapshot_path"
+        ingo_manifest_append_doc_record \
+          "$manifest_file" \
+          "$doc_id" \
+          "duplicate" \
+          "$source_url" \
+          "$source_url" \
+          "$source_url" \
+          "$(ingo_crawl_url_host "$source_url")" \
+          "application/pdf" \
+          "pdf" \
+          "" \
+          "$content_sha" \
+          "$bytes" \
+          "$(ingo_crawl_timestamp_utc)" \
+          "$(ingo_crawl_timestamp_utc)" \
+          "$canonical_doc_id"
+      else
+        mv -f "$snapshot_path" "$out_path"
+        ingo_manifest_append_doc_record \
+          "$manifest_file" \
+          "$doc_id" \
+          "downloaded" \
+          "$source_url" \
+          "$source_url" \
+          "$source_url" \
+          "$(ingo_crawl_url_host "$source_url")" \
+          "application/pdf" \
+          "pdf" \
+          "${out_path#"$ROOT_DIR"/}" \
+          "$content_sha" \
+          "$bytes" \
+          "$(ingo_crawl_timestamp_utc)" \
+          "$(ingo_crawl_timestamp_utc)" \
+          ""
+      fi
+    done < "$work_dir/snapshots.list"
+  fi
   printf "%s\n" "$collect_summary" > "$work_dir/collect-summary.txt"
 }
 
