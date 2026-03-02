@@ -173,6 +173,7 @@ ingo_extract_write_meta_from_manifest_line() {
 ingo_extract_manifest_documents() {
   local manifest_file="$1"
   local extracted_dir="$2"
+  local doc_ids_file="${3:-}"
   local extracted_count=0 unsupported_count=0 failed_count=0
   local line doc_id local_path file_ext abs_input out_file rel_text_path meta_file
 
@@ -190,6 +191,11 @@ ingo_extract_manifest_documents() {
     file_ext="$(printf "%s" "$line" | jq -r '.file_ext // ""' | tr '[:upper:]' '[:lower:]')"
     [ -n "$doc_id" ] || continue
     [ -n "$local_path" ] || continue
+    if [ -n "$doc_ids_file" ] && [ -s "$doc_ids_file" ]; then
+      if ! grep -Fqx "$doc_id" "$doc_ids_file"; then
+        continue
+      fi
+    fi
 
     if [[ "$local_path" = /* ]]; then
       abs_input="$local_path"

@@ -168,7 +168,7 @@ cmd_fetch() {
   fi
 
   if [ -n "$seeds" ]; then
-    local depth allow_hosts_file manifest_file skipped_file errors_file corpus_root crawl_root urls_file progress_step
+    local depth allow_hosts_file manifest_file skipped_file errors_file corpus_root crawl_root urls_file progress_step new_doc_ids_file
     local visited_count doc_candidate_count collect_summary extract_summary
 
     [ -f "$seeds" ] || { echo "seeds file not found: $seeds" >&2; return 2; }
@@ -181,6 +181,7 @@ cmd_fetch() {
     corpus_root="$ROOT_DIR/$INGO_CORPUS_DIR"
     crawl_root="$corpus_root/crawl"
     urls_file="$crawl_root/discovered-$(date +%Y%m%d-%H%M%S).txt"
+    new_doc_ids_file="$crawl_root/new-doc-ids-$(date +%Y%m%d-%H%M%S).txt"
     mkdir -p "$crawl_root" "$corpus_root/manifests" "$corpus_root/downloads" "$corpus_root/extracted" "$corpus_root/config"
 
     allow_hosts_file="${allow_hosts:-$ROOT_DIR/$INGO_ALLOWED_HOSTS_FILE}"
@@ -203,12 +204,12 @@ cmd_fetch() {
       INGO_SNAPSHOT_PAGES_TO_PDF=1
     fi
 
-    INGO_MANIFEST_FILE="$manifest_file" INGO_SKIPPED_FILE="$skipped_file" INGO_ERRORS_FILE="$errors_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" \
+    INGO_MANIFEST_FILE="$manifest_file" INGO_SKIPPED_FILE="$skipped_file" INGO_ERRORS_FILE="$errors_file" INGO_DOWNLOADS_DIR="$corpus_root/downloads" INGO_NEW_DOC_IDS_FILE="$new_doc_ids_file" \
       INGO_SNAPSHOT_PAGES_TO_PDF="$INGO_SNAPSHOT_PAGES_TO_PDF" \
       INGO_PROGRESS_EVERY="$progress_step" INGO_CRAWL_VERBOSE="$verbose" \
       ingo_crawl_discover_urls "$seeds" "$depth" "$allow_hosts_file" "$urls_file" "$crawl_root"
     collect_summary="$(cat "$crawl_root/collect-summary.txt" 2>/dev/null || true)"
-    extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$ROOT_DIR/$INGO_RAW_DIR")"
+    extract_summary="$(ingo_extract_manifest_documents "$manifest_file" "$ROOT_DIR/$INGO_RAW_DIR" "$new_doc_ids_file")"
     visited_count="$(wc -l < "$urls_file" | tr -d ' ')"
     doc_candidate_count="$(grep -Eic '\.(pdf|docx?|html?|xlsx?|xlsm)(\?|$)' "$urls_file" || true)"
 

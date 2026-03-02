@@ -105,6 +105,7 @@ bin/ingo fetch \
 Notes:
 - Seed crawl is append-only by default for manifests/ledgers (no automatic reset).
 - Already-seen URLs in the manifest are skipped (reason: `already_seen_url`).
+- Extraction in `fetch --seeds` is scoped to files downloaded in the current run.
 - Use `--reset-manifests` only when you explicitly want a clean ledger for a new run.
 
 Optional fallback to export eligible pages as PDF when no document links are found on a page:
