@@ -105,13 +105,14 @@ curl() {
 }
 
 test_http_defaults() {
-  unset INGO_HTTP_CONNECT_TIMEOUT INGO_HTTP_READ_TIMEOUT
+  unset INGO_HTTP_CONNECT_TIMEOUT INGO_HTTP_READ_TIMEOUT INGO_HTTP_DOWNLOAD_TIMEOUT
   unset INGO_HTTP_RETRY_ATTEMPTS INGO_HTTP_RETRY_BACKOFF_MIN INGO_HTTP_RETRY_BACKOFF_MAX INGO_HTTP_RETRY_BACKOFF_FACTOR INGO_HTTP_RETRY_AFTER_MAX
   unset INGO_HTTP_RETRY_MAX INGO_HTTP_RETRY_BACKOFF
   ingo_load_env
 
   assert_eq "$INGO_HTTP_CONNECT_TIMEOUT" "5" "default connect timeout"
   assert_eq "$INGO_HTTP_READ_TIMEOUT" "30" "default read timeout"
+  assert_eq "$INGO_HTTP_DOWNLOAD_TIMEOUT" "120" "default download timeout"
   assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "2" "default retry attempts"
   assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "1" "default retry backoff min"
   assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "8" "default retry backoff max"
@@ -124,6 +125,7 @@ test_http_defaults() {
 test_http_overrides() {
   INGO_HTTP_CONNECT_TIMEOUT="9"
   INGO_HTTP_READ_TIMEOUT="44"
+  INGO_HTTP_DOWNLOAD_TIMEOUT="130"
   INGO_HTTP_RETRY_ATTEMPTS="7"
   INGO_HTTP_RETRY_BACKOFF_MIN="3"
   INGO_HTTP_RETRY_BACKOFF_MAX="21"
@@ -133,6 +135,7 @@ test_http_overrides() {
 
   assert_eq "$INGO_HTTP_CONNECT_TIMEOUT" "9" "override connect timeout"
   assert_eq "$INGO_HTTP_READ_TIMEOUT" "44" "override read timeout"
+  assert_eq "$INGO_HTTP_DOWNLOAD_TIMEOUT" "130" "override download timeout"
   assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "7" "override retry attempts"
   assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "3" "override retry backoff min"
   assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "21" "override retry backoff max"

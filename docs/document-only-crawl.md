@@ -18,6 +18,12 @@ Optional:
 bin/ingo fetch ... --progress-every 25 --verbose
 ```
 
+Reset run ledgers only when needed:
+
+```bash
+bin/ingo fetch ... --reset-manifests
+```
+
 Optional page snapshot fallback (requires `wkhtmltopdf`):
 
 ```bash
@@ -45,6 +51,7 @@ Common exclusions:
 - images/icons (`png`, `jpg`, `svg`, `ico`, ...)
 - frontend assets (`js`, `css`, fonts)
 - social/login/generic non-document pages
+- malformed URLs (spaces, bad schemes, invalid host section)
 
 ## Output Files
 
@@ -53,12 +60,21 @@ Common exclusions:
 - Error ledger: `data/corpus/manifests/gdb_errors.ndjson`
 - Downloaded files: `data/corpus/downloads/`
 
+By default manifests are append-only, and URLs already present in the accepted manifest are skipped with reason `already_seen_url`.
+Host policy for discovery is derived from seed hosts plus `--allow-hosts`.
+
+Progress phases during run:
+- `crawl-progress`: discover + queue
+- `collect-progress`: probe + download
+- `extract-progress`: extraction
+
 ## Inspect Results
 
 ```bash
 jq -r '.status' data/corpus/manifests/gdb_documents.ndjson | sort | uniq -c
 jq -r '.reason' data/corpus/manifests/gdb_skipped.ndjson | sort | uniq -c
 jq -r '.error' data/corpus/manifests/gdb_errors.ndjson | sort | uniq -c
+jq -c 'select(.reason=="malformed_url")' data/corpus/manifests/gdb_skipped.ndjson | sed -n '1,20p'
 find data/corpus/downloads -type f | sed -n '1,50p'
 ```
 
