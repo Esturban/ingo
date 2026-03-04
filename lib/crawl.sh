@@ -35,6 +35,42 @@ ingo_crawl_resolve_path() {
   printf "%s\n" "$out"
 }
 
+ingo_crawl_prefer_https() {
+  local url="$1"
+  if [[ "$url" =~ ^http:// ]] && [ "${INGO_CRAWL_ALLOW_HTTP:-0}" != "1" ]; then
+    printf "%s\n" "https://${url#http://}"
+    return 0
+  fi
+  printf "%s\n" "$url"
+}
+
+ingo_crawl_decode_entities() {
+  local value="$1"
+  value="${value//&amp;/&}"
+  value="${value//&#38;/&}"
+  printf "%s\n" "$value"
+}
+
+ingo_crawl_sanitize_url() {
+  local url="$1"
+  url="$(printf "%s" "$url" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+  url="$(ingo_crawl_decode_entities "$url")"
+  printf "%s\n" "$url"
+}
+
+ingo_crawl_is_malformed_url() {
+  local url="$1"
+  url="$(ingo_crawl_sanitize_url "$url")"
+  [[ "$url" =~ ^https?:// ]] || return 0
+  [[ "$url" =~ [[:space:]] ]] && return 0
+  [[ "$url" == *"|"* ]] && return 0
+  if printf "%s" "$url" | grep -Eq '%($|[^0-9A-Fa-f]|.[^0-9A-Fa-f])'; then
+    return 0
+  fi
+  [[ "$url" =~ ^https?://[^/?#]+ ]] || return 0
+  return 1
+}
+
 ingo_crawl_extract_scheme_host() {
   local url="$1"
   if [[ "$url" =~ ^(https?)://([^/]+) ]]; then
@@ -47,22 +83,56 @@ ingo_crawl_extract_scheme_host() {
 ingo_crawl_host_allowed() {
   local host="$1"
   local allow_file="${2:-}"
-  local line
-
-  case "$host" in
-    *.gov.co|gov.co) return 0 ;;
-  esac
+  local line rule
 
   [ -f "$allow_file" ] || return 1
   while IFS= read -r line; do
     line="${line%%#*}"
     line="$(printf "%s" "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     [ -n "$line" ] || continue
-    if [ "$line" = "$host" ]; then
+    rule="$(printf "%s" "$line" | tr '[:upper:]' '[:lower:]')"
+    case "$rule" in
+      \**)
+        rule="${rule#\*}"
+        ;;
+    esac
+    if [ "$rule" = "$host" ] || [[ "$host" == *".${rule#.}" ]]; then
       return 0
     fi
   done < "$allow_file"
   return 1
+}
+
+ingo_crawl_build_allow_hosts_file() {
+  local seeds_file="$1"
+  local allow_hosts_file="$2"
+  local out_file="$3"
+  local raw parsed host line
+
+  : > "$out_file"
+
+  while IFS= read -r raw; do
+    raw="${raw%%#*}"
+    raw="$(ingo_crawl_sanitize_url "$raw")"
+    [ -n "$raw" ] || continue
+    raw="$(ingo_crawl_prefer_https "$raw")"
+    parsed="$(ingo_crawl_extract_scheme_host "$raw" || true)"
+    [ -n "$parsed" ] || continue
+    host="${parsed#*$'\t'}"
+    [ -n "$host" ] || continue
+    printf "%s\n" "$host" >> "$out_file"
+  done < "$seeds_file"
+
+  if [ -f "$allow_hosts_file" ]; then
+    while IFS= read -r line; do
+      line="${line%%#*}"
+      line="$(printf "%s" "$line" | tr '[:upper:]' '[:lower:]' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      [ -n "$line" ] || continue
+      printf "%s\n" "$line" >> "$out_file"
+    done < "$allow_hosts_file"
+  fi
+
+  sort -u "$out_file" -o "$out_file"
 }
 
 ingo_crawl_normalize_url() {
@@ -71,9 +141,14 @@ ingo_crawl_normalize_url() {
   local parsed scheme host root path base_dir query path_only combined
 
   raw_url="$(ingo_crawl_trim_fragment "$raw_url")"
+  raw_url="$(ingo_crawl_sanitize_url "$raw_url")"
   [ -n "$raw_url" ] || return 1
 
   if [[ "$raw_url" =~ ^https?:// ]]; then
+    raw_url="$(ingo_crawl_prefer_https "$raw_url")"
+    if ingo_crawl_is_malformed_url "$raw_url"; then
+      return 1
+    fi
     parsed="$(ingo_crawl_extract_scheme_host "$raw_url" || true)"
     [ -n "$parsed" ] || return 1
     scheme="${parsed%%$'\t'*}"
@@ -168,17 +243,21 @@ ingo_crawl_discover_urls() {
   local allow_hosts_file="$3"
   local out_urls_file="$4"
   local work_dir="$5"
-  local queue_file visited_file pages_dir
+  local queue_file visited_file queued_file pages_dir
+  local -A visited_set=()
+  local -A queued_set=()
   local line depth url parent parsed host page_file next_depth candidate raw
   local candidate_ext page_doc_candidates snapshot_tmp
   local processed_count=0 queued_count=0 start_ts now elapsed progress_every verbose
 
   queue_file="$work_dir/queue.tsv"
   visited_file="$work_dir/visited.txt"
+  queued_file="$work_dir/queued.txt"
   pages_dir="$work_dir/pages"
   mkdir -p "$work_dir" "$pages_dir"
   : > "$queue_file"
   : > "$visited_file"
+  : > "$queued_file"
   : > "$out_urls_file"
 
   start_ts="$(date +%s)"
@@ -187,22 +266,37 @@ ingo_crawl_discover_urls() {
 
   while IFS= read -r raw; do
     raw="${raw%%#*}"
-    raw="$(printf "%s" "$raw" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    raw="$(ingo_crawl_sanitize_url "$raw")"
     [ -n "$raw" ] || continue
+    raw="$(ingo_crawl_prefer_https "$raw")"
+    if ingo_crawl_is_malformed_url "$raw"; then
+      continue
+    fi
+    if [ "${queued_set["$raw"]+yes}" = "yes" ]; then
+      continue
+    fi
+    queued_set["$raw"]=1
     printf "0\t%s\t\n" "$raw" >> "$queue_file"
+    printf "%s\n" "$raw" >> "$queued_file"
     queued_count=$((queued_count + 1))
   done < "$seeds_file"
+  echo "crawl-start: queued=$queued_count depth=$max_depth" >&2
 
   while IFS=$'\t' read -r depth url parent; do
     [ -n "$url" ] || continue
+    url="$(ingo_crawl_sanitize_url "$url")"
+    if ingo_crawl_is_malformed_url "$url"; then
+      continue
+    fi
+    url="$(ingo_crawl_prefer_https "$url")"
     processed_count=$((processed_count + 1))
     if [ "$verbose" = "1" ]; then
       echo "crawl-url: depth=$depth url=$url"
     fi
-    if [ $((processed_count % progress_every)) -eq 0 ]; then
+    if [ "$processed_count" -eq 1 ] || [ $((processed_count % progress_every)) -eq 0 ]; then
       now="$(date +%s)"
       elapsed=$((now - start_ts))
-      echo "crawl-progress: processed=$processed_count queued=$queued_count elapsed=${elapsed}s"
+      echo "crawl-progress: processed=$processed_count queued=$queued_count elapsed=${elapsed}s" >&2
     fi
     parsed="$(ingo_crawl_extract_scheme_host "$url" || true)"
     [ -n "$parsed" ] || continue
@@ -211,9 +305,10 @@ ingo_crawl_discover_urls() {
       continue
     fi
 
-    if grep -Fqx "$url" "$visited_file"; then
+    if [ "${visited_set["$url"]+yes}" = "yes" ]; then
       continue
     fi
+    visited_set["$url"]=1
     printf "%s\n" "$url" >> "$visited_file"
     printf "%s\n" "$url" >> "$out_urls_file"
 
@@ -235,6 +330,10 @@ ingo_crawl_discover_urls() {
     while IFS= read -r raw; do
       candidate="$(ingo_crawl_normalize_url "$url" "$raw" || true)"
       [ -n "$candidate" ] || continue
+      candidate="$(ingo_crawl_sanitize_url "$candidate")"
+      if ingo_crawl_is_malformed_url "$candidate"; then
+        continue
+      fi
       parsed="$(ingo_crawl_extract_scheme_host "$candidate" || true)"
       [ -n "$parsed" ] || continue
       host="${parsed#*$'\t'}"
@@ -250,15 +349,16 @@ ingo_crawl_discover_urls() {
       fi
       if [ -n "$candidate_ext" ] && ingo_is_document_extension "$candidate_ext"; then
         page_doc_candidates=$((page_doc_candidates + 1))
-      else
-        if ! ingo_url_is_allowed_page_candidate "$candidate"; then
-          continue
-        fi
       fi
-      if grep -Fqx "$candidate" "$visited_file"; then
+      if [ "${visited_set["$candidate"]+yes}" = "yes" ]; then
         continue
       fi
+      if [ "${queued_set["$candidate"]+yes}" = "yes" ]; then
+        continue
+      fi
+      queued_set["$candidate"]=1
       printf "%s\t%s\t%s\n" "$next_depth" "$candidate" "$url" >> "$queue_file"
+      printf "%s\n" "$candidate" >> "$queued_file"
       queued_count=$((queued_count + 1))
     done < <(ingo_crawl_extract_links "$page_file")
 
@@ -412,6 +512,18 @@ ingo_crawl_ext_from_content_type() {
   esac
 }
 
+ingo_crawl_mime_from_ext() {
+  local ext
+  ext="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$ext" in
+    pdf) printf "application/pdf\n" ;;
+    docx) printf "application/vnd.openxmlformats-officedocument.wordprocessingml.document\n" ;;
+    xlsx) printf "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\n" ;;
+    xlsm) printf "application/vnd.ms-excel\n" ;;
+    *) printf "application/octet-stream\n" ;;
+  esac
+}
+
 ingo_crawl_append_skipped() {
   local skipped_file="$1"
   local url="$2"
@@ -477,16 +589,59 @@ ingo_crawl_collect_documents() {
   local url ext host out_name out_path tmp_out fetched_at stable_name
   local content_sha doc_id duplicate_of mime_type bytes status local_path final_url doc_id_suffix
   local probe_status probe_content_type probe_final_url probe
+  local skip_probe_for_allowed_ext
   local downloaded_count=0 duplicate_count=0 failed_count=0 skipped_count=0
+  local processed_count=0 total_count=0 progress_every verbose
   local canonical_doc_id
+  local run_doc_ids_file="${INGO_NEW_DOC_IDS_FILE:-}"
+  local existing_path existing_abs_path download_timeout
+  local canonical_path canonical_abs_path
 
   mkdir -p "$downloads_dir"
   ingo_manifest_init "$manifest_file"
   [ -n "$skipped_file" ] && ingo_manifest_init "$skipped_file"
   [ -n "$errors_file" ] && ingo_manifest_init "$errors_file"
+  if [ -n "$run_doc_ids_file" ]; then
+    mkdir -p "$(dirname "$run_doc_ids_file")"
+    : > "$run_doc_ids_file"
+  fi
+  progress_every="${INGO_PROGRESS_EVERY:-25}"
+  verbose="${INGO_CRAWL_VERBOSE:-0}"
+  skip_probe_for_allowed_ext="${INGO_SKIP_PROBE_FOR_ALLOWED_EXTENSIONS:-1}"
+  total_count="$(wc -l < "$urls_file" | tr -d ' ')"
+  download_timeout="${INGO_HTTP_DOWNLOAD_TIMEOUT:-${INGO_HTTP_READ_TIMEOUT:-30}}"
+  echo "collect-start: total_urls=$total_count" >&2
 
   while IFS= read -r url; do
     [ -n "$url" ] || continue
+    processed_count=$((processed_count + 1))
+    if [ "$verbose" = "1" ]; then
+      echo "collect-url: $url"
+    fi
+    if [ "$processed_count" -eq 1 ] || [ $((processed_count % progress_every)) -eq 0 ]; then
+      echo "collect-progress: processed=$processed_count/$total_count downloaded=$downloaded_count duplicate=$duplicate_count failed=$failed_count skipped=$skipped_count" >&2
+    fi
+    url="$(ingo_crawl_sanitize_url "$url")"
+    if ingo_crawl_is_malformed_url "$url"; then
+      skipped_count=$((skipped_count + 1))
+      [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "malformed_url" "" ""
+      continue
+    fi
+    if ingo_manifest_has_url "$manifest_file" "$url"; then
+      existing_path="$(ingo_manifest_find_local_path_by_url "$manifest_file" "$url" || true)"
+      if [ -n "$existing_path" ]; then
+        if [[ "$existing_path" = /* ]]; then
+          existing_abs_path="$existing_path"
+        else
+          existing_abs_path="$ROOT_DIR/$existing_path"
+        fi
+        if [ -f "$existing_abs_path" ]; then
+          skipped_count=$((skipped_count + 1))
+          [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "already_seen_url" "" ""
+          continue
+        fi
+      fi
+    fi
     ext=""
     if ingo_url_matches_deny_pattern "$url"; then
       skipped_count=$((skipped_count + 1))
@@ -500,7 +655,13 @@ ingo_crawl_collect_documents() {
       [ -n "$skipped_file" ] && ingo_crawl_append_skipped "$skipped_file" "$url" "$url" "$discovered_from" "excluded_extension" "$ext" ""
       continue
     fi
-    if [ -z "$ext" ] || ! ingo_is_document_extension "$ext"; then
+    probe_status=""
+    probe_content_type=""
+    probe_final_url=""
+    if [ -n "$ext" ] && ingo_is_document_extension "$ext" && [ "$skip_probe_for_allowed_ext" = "1" ]; then
+      probe_content_type="$(ingo_crawl_mime_from_ext "$ext")"
+      probe_final_url="$url"
+    elif [ -z "$ext" ] || ! ingo_is_document_extension "$ext"; then
       probe="$(ingo_crawl_probe_url "$url")"
       probe_status="${probe%%$'\t'*}"
       probe_content_type="${probe#*$'\t'}"
@@ -545,7 +706,7 @@ ingo_crawl_collect_documents() {
     tmp_out="$(mktemp "$downloads_dir/.tmp-download.XXXXXX")"
     fetched_at="$(ingo_crawl_timestamp_utc)"
 
-    if ! ingo_http_curl -fsSL "$url" -o "$tmp_out"; then
+    if ! INGO_HTTP_READ_TIMEOUT="$download_timeout" ingo_http_curl -fsSL "$url" -o "$tmp_out"; then
       failed_count=$((failed_count + 1))
       [ -n "$errors_file" ] && ingo_crawl_append_error "$errors_file" "$url" "$url" "$discovered_from" "0" "download_failed"
       rm -f "$tmp_out"
@@ -569,12 +730,29 @@ ingo_crawl_collect_documents() {
       status="duplicate"
       duplicate_count=$((duplicate_count + 1))
       ingo_manifest_update_aliases "$manifest_file" "$canonical_doc_id" "$url" || true
-      rm -f "$tmp_out"
+      canonical_path="$(ingo_manifest_find_local_path_by_doc_id "$manifest_file" "$canonical_doc_id" || true)"
+      if [ -n "$canonical_path" ]; then
+        if [[ "$canonical_path" = /* ]]; then
+          canonical_abs_path="$canonical_path"
+        else
+          canonical_abs_path="$ROOT_DIR/$canonical_path"
+        fi
+      else
+        canonical_abs_path=""
+      fi
+      if [ -n "$canonical_abs_path" ] && [ -f "$canonical_abs_path" ]; then
+        rm -f "$tmp_out"
+      else
+        mv -f "$tmp_out" "$out_path"
+      fi
     else
       duplicate_of=""
       status="downloaded"
       downloaded_count=$((downloaded_count + 1))
       mv -f "$tmp_out" "$out_path"
+      if [ -n "$run_doc_ids_file" ]; then
+        printf "%s\n" "$doc_id" >> "$run_doc_ids_file"
+      fi
     fi
 
     ingo_manifest_append_doc_record \

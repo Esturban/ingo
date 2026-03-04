@@ -173,11 +173,17 @@ ingo_extract_write_meta_from_manifest_line() {
 ingo_extract_manifest_documents() {
   local manifest_file="$1"
   local extracted_dir="$2"
+  local doc_ids_file="${3:-}"
   local extracted_count=0 unsupported_count=0 failed_count=0
   local line doc_id local_path file_ext abs_input out_file rel_text_path meta_file
+  local processed_count=0 total_count=0 progress_every verbose
 
   mkdir -p "$extracted_dir"
   [ -s "$manifest_file" ] || { printf "extracted=0 unsupported=0 failed=0\n"; return 0; }
+  progress_every="${INGO_PROGRESS_EVERY:-25}"
+  verbose="${INGO_CRAWL_VERBOSE:-0}"
+  total_count="$(jq -r 'select((.status // "") == "downloaded") | .doc_id' "$manifest_file" 2>/dev/null | wc -l | tr -d ' ')"
+  echo "extract-start: candidates=$total_count" >&2
 
   while IFS= read -r line; do
     [ -n "$line" ] || continue
@@ -190,6 +196,18 @@ ingo_extract_manifest_documents() {
     file_ext="$(printf "%s" "$line" | jq -r '.file_ext // ""' | tr '[:upper:]' '[:lower:]')"
     [ -n "$doc_id" ] || continue
     [ -n "$local_path" ] || continue
+    if [ -n "$doc_ids_file" ] && [ -s "$doc_ids_file" ]; then
+      if ! grep -Fqx "$doc_id" "$doc_ids_file"; then
+        continue
+      fi
+    fi
+    processed_count=$((processed_count + 1))
+    if [ "$verbose" = "1" ]; then
+      echo "extract-doc: doc_id=$doc_id ext=$file_ext path=$local_path"
+    fi
+    if [ "$processed_count" -eq 1 ] || [ $((processed_count % progress_every)) -eq 0 ]; then
+      echo "extract-progress: processed=$processed_count/$total_count extracted=$extracted_count unsupported=$unsupported_count failed=$failed_count" >&2
+    fi
 
     if [[ "$local_path" = /* ]]; then
       abs_input="$local_path"
