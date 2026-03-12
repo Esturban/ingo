@@ -9,7 +9,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Basic repository health
+      - name: Install shellcheck
         run: |
-          git status --short
-          echo "Define repo-specific CI checks in this workflow as needed."
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+      - name: Run shell test suite
+        run: |
+          set -euo pipefail
+          for f in tests/*_test.sh; do
+            bash "$f"
+          done
+      - name: Run shellcheck
+        run: |
+          set -euo pipefail
+          shellcheck bin/ingo lib/*.sh tests/*.sh

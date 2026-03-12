@@ -117,7 +117,7 @@ test_depth_policy() {
   )"
 
   assert_contains "$out" "crawl-depth: 1" "crawl depth should be reported"
-  latest="$(ls -1 "$repo/data/corpus/crawl"/discovered-*.txt | sort | tail -n 1)"
+  latest="$(find "$repo/data/corpus/crawl" -maxdepth 1 -type f -name 'discovered-*.txt' | sort | tail -n 1)"
   discovered="$(cat "$latest")"
   assert_contains "$discovered" "https://seed.gov.co/doc.pdf" "depth 1 should discover first-level doc"
   assert_not_contains "$discovered" "https://seed.gov.co/level2/deep.pdf" "depth 1 should not discover second-level doc"

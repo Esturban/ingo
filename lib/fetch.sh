@@ -66,7 +66,7 @@ ingo_url_matches_deny_pattern() {
   local url
   url="$(printf "%s" "$1" | tr '[:upper:]' '[:lower:]')"
   case "$url" in
-    *linkedin.com*|*whatsapp.com*|*api.whatsapp.com*|*returnurl=*|*/security/*|*login*|\
+    *linkedin.com*|*whatsapp.com*|*returnurl=*|*/security/*|*login*|\
     *mailto:*|*tel:*|*javascript:*|*data:*|\
     */ciudadania/*|*/participacion*|*/comunicate*|*/pqrs*|*/noticias/*|*/tramites-y-servicios*|\
     */images/*|*/media/*|*/templates/*|*/modules/*)
