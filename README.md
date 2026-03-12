@@ -6,6 +6,20 @@ Minimal shell runtime to ingest Spanish legal PDFs into Upstash Vector and query
 
 `ingo` runs an end-to-end ingest pipeline (fetch -> OCR -> chunk -> embed -> cleanup) and exposes a query command over the same Upstash Vector namespace. It supports two deployment roles: `INGO_ROLE=all` for ingest/query workers and `INGO_ROLE=query` for query-only devices where ingest commands are blocked.
 
+## Workflow Model
+
+`ingo` keeps one CLI surface, but it operates in two distinct workflows:
+
+- Direct ingest workflow:
+  - use `fetch --url` to download one known document, optionally with `--dir` to place it in a chosen inbox.
+  - use `run --url/--dir` when you want the direct fetch -> OCR -> chunk -> embed path.
+  - this is the simpler fetch -> OCR -> chunk -> embed path.
+- Corpus discovery workflow:
+  - use `fetch --seeds` when you want to discover, download, ledger, and curate a broader document corpus before indexing it.
+  - this workflow produces crawl state, manifests, skipped/error ledgers, downloads, and extracted text under `INGO_CORPUS_DIR`.
+
+The command names and flags are shared on purpose. The operational guarantees are not identical: `run` is a fail-fast batch wrapper for the direct ingest path, while `fetch --seeds` is the corpus-oriented workflow with append-only ledgers and rerun-aware crawl state.
+
 ## Features
 
 - Single CLI for ingest and retrieval (`bin/ingo`).
@@ -79,19 +93,19 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 
 Common flows:
 
-Local folder ingest:
+Direct ingest from local folder:
 
 ```bash
 bin/ingo run --dir data/ingest --strict
 ```
 
-URL one-shot ingest:
+Direct ingest from one known document URL:
 
 ```bash
 bin/ingo run --url "https://example.com/doc.pdf" --strict
 ```
 
-Seed-crawl discovery (corpus mode via `fetch`):
+Corpus discovery and download (`fetch --seeds` workflow):
 
 ```bash
 bin/ingo fetch \
@@ -108,6 +122,7 @@ Notes:
 - Extraction in `fetch --seeds` is scoped to files downloaded in the current run.
 - Host policy in seed crawl is `seed hosts + --allow-hosts` (merged into a runtime allow-hosts file).
 - Use `--reset-manifests` only when you explicitly want a clean ledger for a new run.
+- `fetch --seeds` is the corpus workflow entrypoint; it is not just a larger version of `fetch --url`.
 
 Runtime visibility:
 - `crawl-progress`: discovery/queue phase counters.
@@ -138,6 +153,7 @@ rm -f "data/corpus/downloads/unwanted-file.pdf"
 Index curated corpus using existing pipeline:
 
 ```bash
+# `run` does not orchestrate the corpus workflow; continue with explicit stages.
 bin/ingo chunk --no-strict
 bin/ingo embed
 ```
@@ -222,6 +238,9 @@ Default inbox is `$HOME/ingest` unless overridden by `INGO_INBOX` or command `--
 
 ## Operational Notes
 
+- Workflow boundaries:
+  - `run` remains a fail-fast batch wrapper for the direct ingest workflow.
+  - corpus discovery stays explicit: `fetch --seeds` first, then curate, then `chunk` and `embed`.
 - Relevance behavior:
   - `chunk --strict` (or default `INGO_RELEVANCE_MODE=strict`) rejects low-signal text into `INGO_REJECTED_DIR`.
   - `chunk --no-strict` disables relevance filtering for that run.

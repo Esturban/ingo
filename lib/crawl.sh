@@ -238,6 +238,8 @@ ingo_crawl_snapshot_page_pdf() {
 }
 
 ingo_crawl_discover_urls() {
+  # Discovery is already a hotspot. Keep traversal behavior explicit here and
+  # extract small helpers for future policy changes instead of growing the loop.
   local seeds_file="$1"
   local max_depth="$2"
   local allow_hosts_file="$3"
@@ -246,7 +248,7 @@ ingo_crawl_discover_urls() {
   local queue_file visited_file queued_file pages_dir
   local -A visited_set=()
   local -A queued_set=()
-  local line depth url parent parsed host page_file next_depth candidate raw
+  local line depth url _parent parsed host page_file next_depth candidate raw
   local candidate_ext page_doc_candidates snapshot_tmp
   local processed_count=0 queued_count=0 start_ts now elapsed progress_every verbose
 
@@ -282,7 +284,7 @@ ingo_crawl_discover_urls() {
   done < "$seeds_file"
   echo "crawl-start: queued=$queued_count depth=$max_depth" >&2
 
-  while IFS=$'\t' read -r depth url parent; do
+  while IFS=$'\t' read -r depth url _parent; do
     [ -n "$url" ] || continue
     url="$(ingo_crawl_sanitize_url "$url")"
     if ingo_crawl_is_malformed_url "$url"; then
@@ -580,6 +582,8 @@ ingo_crawl_append_error() {
 }
 
 ingo_crawl_collect_documents() {
+  # Collection is the corpus workflow hotspot. Reuse manifests/ledgers and
+  # prefer helper extraction over adding more inline branching in this loop.
   local urls_file="$1"
   local manifest_file="$2"
   local downloads_dir="$3"

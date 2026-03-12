@@ -89,6 +89,9 @@ doctor() {
 }
 
 cmd_fetch() {
+  # Keep one command surface, but preserve two workflow branches:
+  # direct/local ingest (`--url` / `--dir`) and corpus discovery (`--seeds`).
+  # Future changes here should prefer narrow helpers over adding more inline policy.
   ingo_load_env
   ingo_require_ingest_enabled
   ingo_require_bin curl

@@ -20,6 +20,9 @@ source "$ROOT_DIR/lib/embed.sh"
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/query.sh"
 
+TEST_ROOT_DIR="$(mktemp -d)"
+ROOT_DIR="$TEST_ROOT_DIR"
+
 fail() {
   echo "FAIL: $*" >&2
   exit 1
