@@ -48,6 +48,7 @@ assert_ne() {
 test_collision_safe_keys_and_embed_meta_lookup() {
   local tmp mock_bin root inbox raw chunks txt_a txt_b key_a key_b
   local first_raw_txt second_raw_txt
+  unset INGO_VECTOR_BACKEND INGO_VECTOR_URL INGO_VECTOR_TOKEN INGO_VECTOR_MODEL
   tmp="$(mktemp -d)"
   mock_bin="$tmp/mock-bin"
   root="$tmp/repo"
