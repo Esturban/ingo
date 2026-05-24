@@ -1,10 +1,10 @@
 # ingo
 
-Minimal shell runtime to ingest Spanish legal PDFs into Upstash Vector and query them from the same CLI.
+Minimal shell runtime to ingest Spanish legal PDFs into a vector backend and query them from the same CLI. Upstash remains the default path, and Qdrant is available as an alternative backend.
 
 ## What This Repo Does
 
-`ingo` runs an end-to-end ingest pipeline (fetch -> OCR -> chunk -> embed -> cleanup) and exposes a query command over the same Upstash Vector namespace. It supports two deployment roles: `INGO_ROLE=all` for ingest/query workers and `INGO_ROLE=query` for query-only devices where ingest commands are blocked.
+`ingo` runs an end-to-end ingest pipeline (fetch -> OCR -> chunk -> embed -> cleanup) and exposes a query command over the same configured namespace or collection. It supports two deployment roles: `INGO_ROLE=all` for ingest/query workers and `INGO_ROLE=query` for query-only devices where ingest commands are blocked.
 
 ## Workflow Model
 
@@ -44,7 +44,7 @@ Runtime dependencies checked by `bin/ingo doctor`:
 
 Notes:
 
-- Query-only role (`INGO_ROLE=query`) requires only query dependencies (`curl`, `jq`) and Upstash credentials.
+- Query-only role (`INGO_ROLE=query`) requires only query dependencies (`curl`, `jq`) and vector backend credentials.
 - Ingest role (`INGO_ROLE=all`) requires the full OCR + text processing stack above.
 
 ## Quick Start (5 Minutes)
@@ -55,10 +55,11 @@ Notes:
 cp .env.example .env
 ```
 
-2. Set required values in `.env`:
+2. Set required values in `.env` for the default Upstash path:
 
-- `UPSTASH_VECTOR_REST_URL`
-- `UPSTASH_VECTOR_REST_TOKEN`
+- `INGO_VECTOR_BACKEND=upstash`
+- `INGO_VECTOR_URL`
+- `INGO_VECTOR_TOKEN`
 
 3. Verify setup:
 
@@ -86,7 +87,7 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 | `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--snapshot-pages`, `--verbose`, `--reset-manifests`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo ocr` | OCR PDFs into `data/raw/*.txt` | `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo chunk` | Convert OCR text to chunk JSONL | `--strict`, `--no-strict` | Blocked when `INGO_ROLE=query` |
-| `bin/ingo embed` | Upsert chunks into Upstash Vector | `--force` | Blocked when `INGO_ROLE=query` |
+| `bin/ingo embed` | Upsert chunks into the configured vector backend | `--force` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo cleanup` | Remove local intermediates based on cleanup policy | `--markers` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo run` | Run fetch -> ocr -> chunk -> embed -> cleanup pipeline | `--url URL`, `--dir DIR`, `--strict`, `--no-strict`, `--force` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo query "<question>"` | Query indexed content in configured namespace | `--top-k N` (positive integer only) | Available in all roles |
@@ -179,8 +180,12 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 
 | Variable | Required | Default (`lib/env.sh`) | Description |
 | --- | --- | --- | --- |
-| `UPSTASH_VECTOR_REST_URL` | Yes | none | Base URL for Upstash Vector REST API. |
-| `UPSTASH_VECTOR_REST_TOKEN` | Yes | none | Bearer token for Upstash Vector REST API. |
+| `INGO_VECTOR_BACKEND` | No | `upstash` | Active vector backend. Supported values: `upstash`, `qdrant`. |
+| `INGO_VECTOR_URL` | Yes | none | Base URL for the active vector backend. |
+| `INGO_VECTOR_TOKEN` | Backend-specific | none | API token for the active vector backend. Required for Upstash; optional for local unauthenticated Qdrant. |
+| `INGO_VECTOR_MODEL` | Qdrant only | empty | Provider-side text inference model for Qdrant. Required for the current Qdrant adapter because BYO embeddings are not implemented yet. |
+| `UPSTASH_VECTOR_REST_URL` | Legacy alias | none | Legacy alias for `INGO_VECTOR_URL` on the Upstash backend. |
+| `UPSTASH_VECTOR_REST_TOKEN` | Legacy alias | none | Legacy alias for `INGO_VECTOR_TOKEN` on the Upstash backend. |
 | `INGO_INBOX` | No | `$HOME/ingest` | Source directory for PDFs. |
 | `INGO_RAW_DIR` | No | `data/raw` | OCR output directory (relative to repo root). |
 | `INGO_CHUNK_DIR` | No | `data/chunks` | Chunk JSONL output directory (relative to repo root). |
@@ -217,6 +222,21 @@ Spreadsheet handling:
 | `INGO_HTTP_RETRY_BACKOFF_MAX` | No | `8` | Maximum retry backoff (seconds). |
 | `INGO_HTTP_RETRY_BACKOFF_FACTOR` | No | `2` | Backoff multiplier between retries. |
 | `INGO_HTTP_RETRY_AFTER_MAX` | No | `INGO_HTTP_RETRY_BACKOFF_MAX` | Maximum accepted `Retry-After` sleep (seconds). |
+
+Backend notes:
+
+- `upstash` remains the default backend and works with the same CLI behavior as before.
+- `qdrant` uses `INGO_NAMESPACE` as the Qdrant collection name.
+- The current Qdrant path depends on provider-side text inference through `INGO_VECTOR_MODEL`.
+- Bring-your-own embeddings are not implemented yet.
+
+Qdrant example:
+
+```bash
+INGO_VECTOR_BACKEND="qdrant"
+INGO_VECTOR_URL="http://localhost:6333"
+INGO_VECTOR_MODEL="your-qdrant-inference-model"
+```
 
 Legacy compatibility:
 
@@ -266,11 +286,15 @@ Key coverage areas:
 - `http_wrapper_test.sh`: validates timeout/retry/backoff + wrapper integration in fetch/embed/query.
 - `embed_marker_rerun_test.sh`: validates marker skip/re-embed/force behavior.
 - `path_key_collision_test.sh`: validates collision-safe artifact keys and meta lookup fidelity.
+- `vector_backend_contract_test.sh`: validates backend resolution, backend-aware doctor output, env precedence, and unsupported capability errors.
+- `qdrant_adapter_test.sh`: validates Qdrant query normalization and inference payload wiring.
 
 ## Troubleshooting
 
-- `missing env var: UPSTASH_VECTOR_REST_URL` or `UPSTASH_VECTOR_REST_TOKEN`:
-  - Define both in `.env` or shell environment.
+- `missing env var: INGO_VECTOR_URL` or `INGO_VECTOR_TOKEN`:
+  - Define the generic backend vars in `.env` or shell environment.
+- `vector backend 'qdrant' requires INGO_VECTOR_MODEL for provider-side text inference`:
+  - Set `INGO_VECTOR_MODEL` to a model supported by your Qdrant deployment, or use the default Upstash backend until BYO embeddings exist.
 - `missing OCR language data for INGO_LANG=spa`:
   - Install Tesseract language data for `INGO_LANG` and verify with `tesseract --list-langs`.
 - `invalid --top-k: must be a positive integer`:
