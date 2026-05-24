@@ -6,10 +6,33 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 ingo_load_env() {
   if [ -f "$ROOT_DIR/.env" ]; then
+    local name value
+    local -a preserved_names=()
+    local -a preserved_values=()
+
+    # Let .env execute normally, then restore caller-provided runtime overrides.
+    while IFS= read -r name; do
+      preserved_names+=("$name")
+      preserved_values+=("${!name}")
+    done < <(compgen -A variable INGO_)
+    for name in UPSTASH_VECTOR_REST_URL UPSTASH_VECTOR_REST_TOKEN; do
+      if [ -n "${!name+x}" ]; then
+        preserved_names+=("$name")
+        preserved_values+=("${!name}")
+      fi
+    done
+
     set -a
     # shellcheck source=/dev/null
     . "$ROOT_DIR/.env"
     set +a
+
+    for ((i = 0; i < ${#preserved_names[@]}; i++)); do
+      name="${preserved_names[$i]}"
+      value="${preserved_values[$i]}"
+      printf -v "$name" '%s' "$value"
+      export "$name"
+    done
   fi
 
   : "${INGO_INBOX:=$HOME/ingest}"
@@ -34,6 +57,7 @@ ingo_load_env() {
   : "${INGO_CRAWL_ALLOW_HTTP:=0}"
   : "${INGO_SKIP_PROBE_FOR_ALLOWED_EXTENSIONS:=1}"
   : "${INGO_ROLE:=all}"
+  : "${INGO_VECTOR_BACKEND:=upstash}"
   : "${INGO_HTTP_CONNECT_TIMEOUT:=5}"
   : "${INGO_HTTP_READ_TIMEOUT:=30}"
   : "${INGO_HTTP_DOWNLOAD_TIMEOUT:=120}"
@@ -57,6 +81,31 @@ ingo_load_env() {
   : "${INGO_HTTP_RETRY_BACKOFF_MAX:=8}"
   : "${INGO_HTTP_RETRY_BACKOFF_FACTOR:=2}"
   : "${INGO_HTTP_RETRY_AFTER_MAX:=$INGO_HTTP_RETRY_BACKOFF_MAX}"
+
+  if [ -n "${INGO_VECTOR_URL:-}" ]; then
+    :
+  elif [ -n "${UPSTASH_VECTOR_REST_URL:-}" ]; then
+    INGO_VECTOR_URL="$UPSTASH_VECTOR_REST_URL"
+  else
+    INGO_VECTOR_URL=""
+  fi
+
+  if [ -n "${INGO_VECTOR_TOKEN:-}" ]; then
+    :
+  elif [ -n "${UPSTASH_VECTOR_REST_TOKEN:-}" ]; then
+    INGO_VECTOR_TOKEN="$UPSTASH_VECTOR_REST_TOKEN"
+  else
+    INGO_VECTOR_TOKEN=""
+  fi
+
+  : "${INGO_VECTOR_MODEL:=}"
+
+  if [ -z "${UPSTASH_VECTOR_REST_URL:-}" ] && [ -n "$INGO_VECTOR_URL" ]; then
+    UPSTASH_VECTOR_REST_URL="$INGO_VECTOR_URL"
+  fi
+  if [ -z "${UPSTASH_VECTOR_REST_TOKEN:-}" ] && [ -n "$INGO_VECTOR_TOKEN" ]; then
+    UPSTASH_VECTOR_REST_TOKEN="$INGO_VECTOR_TOKEN"
+  fi
 
   # Keep legacy names populated for compatibility with older scripts/tests.
   INGO_HTTP_RETRY_MAX="$INGO_HTTP_RETRY_ATTEMPTS"
@@ -97,12 +146,14 @@ ingo_require_tesseract_lang() {
 
 ingo_require_env() {
   local missing=0
-  for key in UPSTASH_VECTOR_REST_URL UPSTASH_VECTOR_REST_TOKEN; do
-    if [ -z "${!key:-}" ]; then
-      echo "missing env var: $key" >&2
-      missing=1
-    fi
-  done
+  if [ -z "${INGO_VECTOR_URL:-}" ]; then
+    echo "missing env var: INGO_VECTOR_URL (legacy: UPSTASH_VECTOR_REST_URL)" >&2
+    missing=1
+  fi
+  if [ -z "${INGO_VECTOR_TOKEN:-}" ]; then
+    echo "missing env var: INGO_VECTOR_TOKEN (legacy: UPSTASH_VECTOR_REST_TOKEN)" >&2
+    missing=1
+  fi
   if [ "$missing" -ne 0 ]; then
     return 4
   fi

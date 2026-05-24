@@ -55,6 +55,15 @@ assert_not_contains() {
   fi
 }
 
+reset_runtime_env() {
+  local name
+  while IFS= read -r name; do
+    unset "$name"
+  done < <(compgen -A variable INGO_)
+  unset UPSTASH_VECTOR_REST_URL UPSTASH_VECTOR_REST_TOKEN
+  rm -f "$ROOT_DIR/.env"
+}
+
 MOCK_CURL_CALLS=0
 MOCK_CURL_CODES=()
 MOCK_CURL_RC=()
@@ -108,6 +117,7 @@ curl() {
 }
 
 test_http_defaults() {
+  reset_runtime_env
   unset INGO_HTTP_CONNECT_TIMEOUT INGO_HTTP_READ_TIMEOUT INGO_HTTP_DOWNLOAD_TIMEOUT
   unset INGO_HTTP_RETRY_ATTEMPTS INGO_HTTP_RETRY_BACKOFF_MIN INGO_HTTP_RETRY_BACKOFF_MAX INGO_HTTP_RETRY_BACKOFF_FACTOR INGO_HTTP_RETRY_AFTER_MAX
   unset INGO_HTTP_RETRY_MAX INGO_HTTP_RETRY_BACKOFF
@@ -126,6 +136,7 @@ test_http_defaults() {
 }
 
 test_http_overrides() {
+  reset_runtime_env
   INGO_HTTP_CONNECT_TIMEOUT="9"
   INGO_HTTP_READ_TIMEOUT="44"
   INGO_HTTP_DOWNLOAD_TIMEOUT="130"
@@ -149,6 +160,7 @@ test_http_overrides() {
 }
 
 test_http_legacy_alias_overrides() {
+  reset_runtime_env
   unset INGO_HTTP_RETRY_ATTEMPTS INGO_HTTP_RETRY_BACKOFF_MIN INGO_HTTP_RETRY_BACKOFF_MAX INGO_HTTP_RETRY_BACKOFF_FACTOR INGO_HTTP_RETRY_AFTER_MAX
   INGO_HTTP_RETRY_MAX="6"
   INGO_HTTP_RETRY_BACKOFF="4"
@@ -159,6 +171,59 @@ test_http_legacy_alias_overrides() {
   assert_eq "$INGO_HTTP_RETRY_BACKOFF_MAX" "8" "legacy override keeps default max"
   assert_eq "$INGO_HTTP_RETRY_BACKOFF_FACTOR" "2" "legacy override keeps default factor"
   assert_eq "$INGO_HTTP_RETRY_AFTER_MAX" "8" "legacy override keeps default retry-after cap"
+}
+
+test_http_env_file_populates_unset_values() {
+  reset_runtime_env
+
+  cat > "$ROOT_DIR/.env" <<'EOF'
+INGO_HTTP_CONNECT_TIMEOUT=99
+INGO_HTTP_RETRY_MAX=6
+INGO_HTTP_RETRY_BACKOFF=4
+INGO_NAMESPACE=from-dotenv
+UPSTASH_VECTOR_REST_URL=https://vector.from-dotenv.test
+EOF
+
+  ingo_load_env
+
+  assert_eq "$INGO_HTTP_CONNECT_TIMEOUT" "99" ".env populates unset connect timeout"
+  assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "6" ".env legacy retry max maps to canonical attempts"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "4" ".env legacy retry backoff maps to canonical min"
+  assert_eq "$INGO_NAMESPACE" "from-dotenv" ".env populates namespace"
+  assert_eq "$UPSTASH_VECTOR_REST_URL" "https://vector.from-dotenv.test" ".env populates Upstash URL"
+  assert_eq "$INGO_HTTP_RETRY_MAX" "6" "legacy retry max alias re-derived from canonical value"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF" "4" "legacy retry backoff alias re-derived from canonical value"
+}
+
+test_http_process_env_wins_over_dotenv() {
+  reset_runtime_env
+
+  cat > "$ROOT_DIR/.env" <<'EOF'
+INGO_HTTP_CONNECT_TIMEOUT=99
+INGO_HTTP_RETRY_MAX=6
+INGO_HTTP_RETRY_BACKOFF=4
+INGO_NAMESPACE=from-dotenv
+UPSTASH_VECTOR_REST_URL=https://vector.from-dotenv.test
+UPSTASH_VECTOR_REST_TOKEN=dotenv-token
+EOF
+
+  INGO_HTTP_CONNECT_TIMEOUT="7"
+  INGO_HTTP_RETRY_ATTEMPTS="3"
+  INGO_HTTP_RETRY_BACKOFF_MIN="2"
+  INGO_NAMESPACE="from-process"
+  UPSTASH_VECTOR_REST_URL="https://vector.from-process.test"
+  UPSTASH_VECTOR_REST_TOKEN="process-token"
+
+  ingo_load_env
+
+  assert_eq "$INGO_HTTP_CONNECT_TIMEOUT" "7" "process env wins for connect timeout"
+  assert_eq "$INGO_HTTP_RETRY_ATTEMPTS" "3" "process env wins for canonical retry attempts"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF_MIN" "2" "process env wins for canonical retry backoff min"
+  assert_eq "$INGO_NAMESPACE" "from-process" "process env wins for namespace"
+  assert_eq "$UPSTASH_VECTOR_REST_URL" "https://vector.from-process.test" "process env wins for Upstash URL"
+  assert_eq "$UPSTASH_VECTOR_REST_TOKEN" "process-token" "process env wins for Upstash token"
+  assert_eq "$INGO_HTTP_RETRY_MAX" "3" "legacy retry max alias follows final canonical attempts"
+  assert_eq "$INGO_HTTP_RETRY_BACKOFF" "2" "legacy retry backoff alias follows final canonical min"
 }
 
 test_http_wrapper_curl_flags() {
@@ -304,6 +369,7 @@ test_fetch_uses_http_wrapper() {
 
 test_embed_and_query_use_http_wrapper() {
   local upsert_args query_args
+  reset_runtime_env
   upsert_args="$(mktemp)"
   query_args="$(mktemp)"
 
@@ -317,8 +383,8 @@ test_embed_and_query_use_http_wrapper() {
     printf '{"result":[{"id":"id-1","score":0.9,"metadata":{"text":"ok"}}]}\n200\n'
   }
 
-  export UPSTASH_VECTOR_REST_URL="https://vector.example.test"
-  export UPSTASH_VECTOR_REST_TOKEN="token"
+  export INGO_VECTOR_URL="https://vector.example.test"
+  export INGO_VECTOR_TOKEN="token"
 
   ingo_upsert_line '{"id":"id-1","text":"hola","source":"src","section":"s","article":"a","start":1,"end":2}' "ns"
   local query_json
@@ -339,6 +405,8 @@ main() {
   test_http_defaults
   test_http_overrides
   test_http_legacy_alias_overrides
+  test_http_env_file_populates_unset_values
+  test_http_process_env_wins_over_dotenv
   test_http_wrapper_curl_flags
   test_http_retry_after_precedence_and_limits
   test_http_retry_after_fallback_to_computed_backoff
