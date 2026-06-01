@@ -175,12 +175,33 @@ test_doctor_reports_active_backend() {
   assert_contains "$out" "inference_model=test-model" "doctor prints qdrant model guidance"
 }
 
+test_pinecone_doctor_reports_text_field() {
+  local mock_bin out
+  mock_bin="$(mktemp -d)"
+  make_mock_bin "$mock_bin"
+
+  out="$(
+    PATH="$mock_bin:$PATH" \
+    INGO_VECTOR_BACKEND="pinecone" \
+    INGO_VECTOR_URL="https://example-index.pinecone.io" \
+    INGO_VECTOR_TOKEN="secret" \
+    INGO_PINECONE_TEXT_FIELD="chunk_text" \
+    INGO_PINECONE_API_VERSION="2025-10" \
+    INGO_ROLE="all" \
+    "$ROOT_DIR/bin/ingo" doctor 2>&1
+  )"
+
+  assert_contains "$out" "vector: backend=pinecone" "doctor prints pinecone backend status"
+  assert_contains "$out" "text_field=chunk_text" "doctor prints pinecone text field"
+}
+
 main() {
   test_default_backend_is_upstash
   test_generic_vector_env_precedence
   test_unknown_backend_fails_fast
   test_qdrant_missing_model_uses_capability_error
   test_doctor_reports_active_backend
+  test_pinecone_doctor_reports_text_field
   echo "ok"
 }
 
