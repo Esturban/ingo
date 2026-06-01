@@ -11,15 +11,18 @@ source "$VECTOR_LIB_DIR/vector/upstash.sh"
 # shellcheck source=vector/qdrant.sh
 # shellcheck disable=SC1091
 source "$VECTOR_LIB_DIR/vector/qdrant.sh"
+# shellcheck source=vector/pinecone.sh
+# shellcheck disable=SC1091
+source "$VECTOR_LIB_DIR/vector/pinecone.sh"
 
 ingo_vector_backend_resolve() {
   local backend="${INGO_VECTOR_BACKEND:-upstash}"
   case "$backend" in
-    upstash|qdrant)
+    upstash|qdrant|pinecone)
       printf "%s\n" "$backend"
       ;;
     *)
-      echo "unknown vector backend: $backend (supported: upstash, qdrant)" >&2
+      echo "unknown vector backend: $backend (supported: upstash, qdrant, pinecone)" >&2
       return 2
       ;;
   esac
@@ -34,6 +37,9 @@ ingo_vector_backend_doctor() {
       ;;
     qdrant)
       ingo_vector_qdrant_doctor
+      ;;
+    pinecone)
+      ingo_vector_pinecone_doctor
       ;;
   esac
 }
@@ -51,6 +57,9 @@ ingo_vector_backend_embed_jsonl() {
       ;;
     qdrant)
       ingo_vector_qdrant_embed_jsonl "$jsonl" "$namespace" "$raw_dir"
+      ;;
+    pinecone)
+      ingo_vector_pinecone_embed_jsonl "$jsonl" "$namespace" "$raw_dir"
       ;;
   esac
 }
@@ -95,6 +104,12 @@ ingo_vector_backend_query_text() {
     qdrant)
       set +e
       json="$(ingo_vector_qdrant_query_text "$question" "$top_k" "$namespace")"
+      status=$?
+      set -e
+      ;;
+    pinecone)
+      set +e
+      json="$(ingo_vector_pinecone_query_text "$question" "$top_k" "$namespace")"
       status=$?
       set -e
       ;;
