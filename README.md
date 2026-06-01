@@ -1,6 +1,6 @@
 # ingo
 
-Minimal shell runtime to ingest Spanish legal PDFs into a vector backend and query them from the same CLI. Upstash remains the default path, and Qdrant is available as an alternative backend.
+Minimal shell runtime to ingest Spanish legal PDFs into a vector backend and query them from the same CLI. Upstash remains the default path, and Pinecone or Qdrant can be selected through the same harness.
 
 ## What This Repo Does
 
@@ -55,11 +55,16 @@ Notes:
 cp .env.example .env
 ```
 
-2. Set required values in `.env` for the default Upstash path:
+2. Set required values in `.env` for one backend:
 
 - `INGO_VECTOR_BACKEND=upstash`
 - `INGO_VECTOR_URL`
 - `INGO_VECTOR_TOKEN`
+
+Or switch to:
+
+- `INGO_VECTOR_BACKEND=pinecone` with `INGO_PINECONE_TEXT_FIELD` if your index uses integrated embeddings
+- `INGO_VECTOR_BACKEND=qdrant` with `INGO_VECTOR_MODEL` for provider-side inference
 
 3. Verify setup:
 
@@ -180,10 +185,12 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 
 | Variable | Required | Default (`lib/env.sh`) | Description |
 | --- | --- | --- | --- |
-| `INGO_VECTOR_BACKEND` | No | `upstash` | Active vector backend. Supported values: `upstash`, `qdrant`. |
+| `INGO_VECTOR_BACKEND` | No | `upstash` | Active vector backend. Supported values: `upstash`, `pinecone`, `qdrant`. |
 | `INGO_VECTOR_URL` | Yes | none | Base URL for the active vector backend. |
-| `INGO_VECTOR_TOKEN` | Backend-specific | none | API token for the active vector backend. Required for Upstash; optional for local unauthenticated Qdrant. |
+| `INGO_VECTOR_TOKEN` | Backend-specific | none | API token for the active vector backend. Required for Upstash and Pinecone; optional for local unauthenticated Qdrant. |
 | `INGO_VECTOR_MODEL` | Qdrant only | empty | Provider-side text inference model for Qdrant. Required for the current Qdrant adapter because BYO embeddings are not implemented yet. |
+| `INGO_PINECONE_TEXT_FIELD` | Pinecone only | `chunk_text` | Record field mapped to the integrated embedding source text on Pinecone indexes. |
+| `INGO_PINECONE_API_VERSION` | Pinecone only | `2025-10` | Pinecone date-based API version header used for query and upsert requests. |
 | `UPSTASH_VECTOR_REST_URL` | Legacy alias | none | Legacy alias for `INGO_VECTOR_URL` on the Upstash backend. |
 | `UPSTASH_VECTOR_REST_TOKEN` | Legacy alias | none | Legacy alias for `INGO_VECTOR_TOKEN` on the Upstash backend. |
 | `INGO_INBOX` | No | `$HOME/ingest` | Source directory for PDFs. |
@@ -208,12 +215,6 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
 | `INGO_CRAWL_ALLOW_HTTP` | No | `0` | When `0`, crawl upgrades `http://` URLs to `https://` by default to avoid insecure/dead HTTP endpoints. |
 | `INGO_SKIP_PROBE_FOR_ALLOWED_EXTENSIONS` | No | `1` | When `1`, skip MIME probe round-trip for allowlisted extensions (`pdf/docx/xlsx/xlsm`) to speed up large runs. |
-
-Spreadsheet handling:
-
-- `.xlsx` and `.xlsm` are downloaded and converted to text for chunking/embedding.
-- Extraction priority is `xlsx2csv` -> `in2csv` -> Python `openpyxl` fallback.
-- If none are available, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
 | `INGO_HTTP_DOWNLOAD_TIMEOUT` | No | `120` | HTTP max time for document downloads (seconds). |
@@ -223,12 +224,30 @@ Spreadsheet handling:
 | `INGO_HTTP_RETRY_BACKOFF_FACTOR` | No | `2` | Backoff multiplier between retries. |
 | `INGO_HTTP_RETRY_AFTER_MAX` | No | `INGO_HTTP_RETRY_BACKOFF_MAX` | Maximum accepted `Retry-After` sleep (seconds). |
 
+Spreadsheet handling:
+
+- `.xlsx` and `.xlsm` are downloaded and converted to text for chunking/embedding.
+- Extraction priority is `xlsx2csv` -> `in2csv` -> Python `openpyxl` fallback.
+- If none are available, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
+
 Backend notes:
 
 - `upstash` remains the default backend and works with the same CLI behavior as before.
+- `pinecone` uses `INGO_NAMESPACE` as the Pinecone namespace and expects an integrated-embedding index.
+- `pinecone` stores chunk text in `INGO_PINECONE_TEXT_FIELD` and sends metadata fields alongside it.
 - `qdrant` uses `INGO_NAMESPACE` as the Qdrant collection name.
 - The current Qdrant path depends on provider-side text inference through `INGO_VECTOR_MODEL`.
 - Bring-your-own embeddings are not implemented yet.
+
+Pinecone example:
+
+```bash
+INGO_VECTOR_BACKEND="pinecone"
+INGO_VECTOR_URL="https://your-index-host.pinecone.io"
+INGO_VECTOR_TOKEN="your-pinecone-api-key"
+INGO_PINECONE_TEXT_FIELD="chunk_text"
+INGO_PINECONE_API_VERSION="2025-10"
+```
 
 Qdrant example:
 
@@ -287,6 +306,7 @@ Key coverage areas:
 - `embed_marker_rerun_test.sh`: validates marker skip/re-embed/force behavior.
 - `path_key_collision_test.sh`: validates collision-safe artifact keys and meta lookup fidelity.
 - `vector_backend_contract_test.sh`: validates backend resolution, backend-aware doctor output, env precedence, and unsupported capability errors.
+- `pinecone_adapter_test.sh`: validates Pinecone query normalization and NDJSON upsert payload wiring.
 - `qdrant_adapter_test.sh`: validates Qdrant query normalization and inference payload wiring.
 
 ## Troubleshooting
@@ -295,6 +315,8 @@ Key coverage areas:
   - Define the generic backend vars in `.env` or shell environment.
 - `vector backend 'qdrant' requires INGO_VECTOR_MODEL for provider-side text inference`:
   - Set `INGO_VECTOR_MODEL` to a model supported by your Qdrant deployment, or use the default Upstash backend until BYO embeddings exist.
+- `missing env var: INGO_VECTOR_TOKEN` on Pinecone:
+  - Set `INGO_VECTOR_TOKEN` to a Pinecone API key and verify `INGO_VECTOR_URL` points at the index host, not the control plane.
 - `missing OCR language data for INGO_LANG=spa`:
   - Install Tesseract language data for `INGO_LANG` and verify with `tesseract --list-langs`.
 - `invalid --top-k: must be a positive integer`:
