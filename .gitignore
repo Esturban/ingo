@@ -1,4 +1,5 @@
 .env
+.codex/
 .vscode/
 tmp/
 out/
@@ -9,3 +10,6 @@ data
 .self-improve/
 .ralph/
 data/
+.claude/
+.wolf/
+.codegraph/
