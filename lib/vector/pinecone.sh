@@ -137,6 +137,7 @@ ingo_vector_pinecone_embed_jsonl() {
   body=""
   count=0
 
+  # shellcheck disable=SC2094
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     line="$(printf "%s" "$line" | LC_ALL=C tr -d '\000-\011\013\014\016-\037\177')"
