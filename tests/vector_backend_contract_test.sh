@@ -134,7 +134,7 @@ test_unknown_backend_fails_fast() {
   set -e
 
   assert_eq "$status" "2" "unknown backend exits with config error"
-  assert_contains "$out" "unknown vector backend: bogus" "unknown backend message is actionable"
+  assert_contains "$out" "unknown vector backend: 'bogus'" "unknown backend message is actionable"
 }
 
 test_qdrant_missing_model_uses_capability_error() {
