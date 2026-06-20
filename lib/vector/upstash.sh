@@ -152,6 +152,7 @@ ingo_vector_upstash_embed_jsonl() {
   local count=0
   local base meta_file line
 
+  # shellcheck disable=SC2094
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     line="$(printf "%s" "$line" | LC_ALL=C tr -d '\000-\011\013\014\016-\037\177')"
@@ -161,7 +162,7 @@ ingo_vector_upstash_embed_jsonl() {
     else
       meta_file=""
     fi
-    ingo_upsert_line "$line" "$namespace" "$meta_file"
+    ingo_vector_upstash_upsert_line_impl "$line" "$namespace" "$meta_file"
     count=$((count + 1))
   done < "$jsonl"
 

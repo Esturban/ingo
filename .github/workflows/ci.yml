@@ -22,4 +22,4 @@ jobs:
       - name: Run shellcheck
         run: |
           set -euo pipefail
-          shellcheck bin/ingo lib/*.sh tests/*.sh
+          shellcheck bin/ingo lib/*.sh lib/vector/*.sh tests/*.sh
