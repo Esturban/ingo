@@ -44,14 +44,12 @@ assert_contains() {
 }
 
 CAPTURED_URL=""
-CAPTURED_DATA=""
 CAPTURED_HEADERS=""
 CAPTURED_FILE="$(mktemp)"
 
 ingo_http_curl() {
   local arg
   CAPTURED_URL=""
-  CAPTURED_DATA=""
   CAPTURED_HEADERS=""
   : > "$CAPTURED_FILE"
 
@@ -60,7 +58,6 @@ ingo_http_curl() {
     case "$arg" in
       -d)
         shift
-        CAPTURED_DATA="$1"
         printf 'DATA=%s\n' "$1" >> "$CAPTURED_FILE"
         ;;
       -H)

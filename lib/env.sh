@@ -31,7 +31,7 @@ ingo_load_env() {
       name="${preserved_names[$i]}"
       value="${preserved_values[$i]}"
       printf -v "$name" '%s' "$value"
-      export "$name"
+      export "${name?}"
     done
   fi
 
