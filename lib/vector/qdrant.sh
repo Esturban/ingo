@@ -21,19 +21,27 @@ ingo_vector_qdrant_require_env() {
 
 ingo_vector_qdrant_require_text_inference() {
   if [ -z "${INGO_VECTOR_MODEL:-}" ]; then
-    echo "vector backend 'qdrant' requires INGO_VECTOR_MODEL for provider-side text inference; bring-your-own embeddings are not implemented yet" >&2
+    echo "vector backend 'qdrant' requires INGO_VECTOR_MODEL for provider-side text inference" >&2
+    echo "  or set INGO_EMBEDDING_MODE=external and configure INGO_EMBEDDER_* for BYO vectors" >&2
     return 7
   fi
 }
 
 ingo_vector_qdrant_doctor() {
   ingo_vector_qdrant_require_env || return $?
-  ingo_vector_qdrant_require_text_inference || return $?
-  printf "vector: backend=qdrant collection=%s url=%s api_key=%s inference_model=%s\n" \
-    "$INGO_NAMESPACE" \
-    "$(ingo_vector_qdrant_base_url)" \
-    "$([ -n "${INGO_VECTOR_TOKEN:-}" ] && printf "present" || printf "absent")" \
-    "$INGO_VECTOR_MODEL"
+  if [ "${INGO_EMBEDDING_MODE:-provider}" = "external" ]; then
+    printf "vector: backend=qdrant collection=%s url=%s api_key=%s mode=external\n" \
+      "$INGO_NAMESPACE" \
+      "$(ingo_vector_qdrant_base_url)" \
+      "$([ -n "${INGO_VECTOR_TOKEN:-}" ] && printf "present" || printf "absent")"
+  else
+    ingo_vector_qdrant_require_text_inference || return $?
+    printf "vector: backend=qdrant collection=%s url=%s api_key=%s inference_model=%s\n" \
+      "$INGO_NAMESPACE" \
+      "$(ingo_vector_qdrant_base_url)" \
+      "$([ -n "${INGO_VECTOR_TOKEN:-}" ] && printf "present" || printf "absent")" \
+      "$INGO_VECTOR_MODEL"
+  fi
 }
 
 ingo_vector_qdrant_build_payload_fields() {
@@ -225,6 +233,103 @@ ingo_vector_qdrant_query_text() {
 
   if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
     echo "query failed (status $status): $body" >&2
+    return 5
+  fi
+
+  printf "%s\n" "$body" | jq '
+    def rs: (.result.points // .result // .points // []);
+    {
+      match_count: (rs | length),
+      matches: (
+        rs | map({
+          id: (.id | tostring // ""),
+          score: (.score // 0),
+          text: (.payload.text // ""),
+          source: (.payload.source // ""),
+          section: (.payload.section // ""),
+          article: (.payload.article // ""),
+          page: (.payload.page // null),
+          date_indexed: (.payload.date_indexed // "")
+        })
+      )
+    }'
+}
+
+ingo_vector_qdrant_upsert_vector_jsonl() {
+  local jsonl="$1"
+  local namespace="$2"
+  local count=0
+  local line payload payload_fields vector response status body
+  local -a headers
+
+  ingo_vector_qdrant_require_env || return $?
+
+  headers=()
+  if [ -n "${INGO_VECTOR_TOKEN:-}" ]; then
+    headers+=(-H "api-key: ${INGO_VECTOR_TOKEN}")
+  fi
+
+  # shellcheck disable=SC2094
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    line="$(printf "%s" "$line" | LC_ALL=C tr -d '\000-\011\013\014\016-\037\177')"
+    payload_fields="$(ingo_vector_qdrant_build_payload_fields "$line" "")"
+    vector="$(printf "%s" "$line" | jq -c '.vector // []')"
+
+    payload="$(printf "%s" "$line" | jq \
+      --argjson payload "$payload_fields" \
+      --argjson vector  "$vector" \
+      '{points: [{id: .id, vector: $vector, payload: $payload}]}')"
+
+    response="$(ingo_http_curl -sS -w "\n%{http_code}" \
+      -X PUT "$(ingo_vector_qdrant_base_url)/collections/${namespace}/points?wait=true" \
+      -H "Content-Type: application/json" \
+      "${headers[@]}" \
+      -d "$payload")"
+
+    status="$(printf "%s" "$response" | tail -n 1)"
+    body="$(printf "%s" "$response" | sed '$d')"
+
+    if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+      echo "upsert_vector failed (status $status): $body" >&2
+      return 5
+    fi
+    count=$((count + 1))
+  done < "$jsonl"
+
+  printf "%s\n" "$count"
+}
+
+ingo_vector_qdrant_query_vector() {
+  local vector_json="$1"
+  local top_k="$2"
+  local namespace="$3"
+  local payload response status body
+  local -a headers
+
+  ingo_vector_qdrant_require_env || return $?
+
+  headers=()
+  if [ -n "${INGO_VECTOR_TOKEN:-}" ]; then
+    headers+=(-H "api-key: ${INGO_VECTOR_TOKEN}")
+  fi
+
+  payload="$(jq -n \
+    --argjson vector "$vector_json" \
+    --argjson limit  "$top_k" \
+    '{query: $vector, limit: $limit, with_payload: true}')"
+
+  response="$(ingo_http_curl -sS -w "\n%{http_code}" \
+    -X POST "$(ingo_vector_qdrant_base_url)/collections/${namespace}/points/query" \
+    -H "Content-Type: application/json" \
+    "${headers[@]}" \
+    -d "$payload")"
+
+  status="$(printf "%s" "$response" | tail -n 1)"
+  body="$(printf "%s" "$response" | sed '$d')"
+
+  if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+    echo "query_vector failed (status $status): $body" >&2
     return 5
   fi
 

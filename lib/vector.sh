@@ -103,6 +103,77 @@ ingo_vector_backend_doctor() {
   "$fn"
 }
 
+_ingo_vector_embed_external_jsonl() {
+  local jsonl="$1"
+  local namespace="$2"
+  local backend="$3"
+  local slug="$4"
+  local fn="ingo_vector_${slug}_upsert_vector_jsonl"
+
+  if ! declare -F "$fn" >/dev/null 2>&1; then
+    echo "backend '$backend' does not implement ${fn}() — required when INGO_EMBEDDING_MODE=external" >&2
+    echo "  see docs/adapter-contract.md for the upsert_vector_jsonl contract" >&2
+    return 2
+  fi
+
+  # Lazy-load embedder module if not already available (e.g. when sourced directly in tests).
+  if ! declare -F ingo_embedder_text >/dev/null 2>&1; then
+    # shellcheck source=embedder.sh
+    # shellcheck disable=SC1091
+    source "${VECTOR_LIB_DIR}/embedder.sh"
+  fi
+
+  local tmp_vectorized line text vector
+  tmp_vectorized="$(mktemp)"
+
+  # shellcheck disable=SC2094
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    text="$(printf "%s" "$line" | jq -r '.text // ""')"
+    vector="$(ingo_embedder_text "$text" "document")"
+    printf "%s" "$line" | jq -c --argjson v "$vector" '. + {vector: $v}' >> "$tmp_vectorized"
+  done < "$jsonl"
+
+  # upsert_vector_jsonl prints the count, same as embed_jsonl does in provider mode.
+  "$fn" "$tmp_vectorized" "$namespace"
+  rm -f "$tmp_vectorized"
+}
+
+_ingo_vector_query_external() {
+  local question="$1"
+  local top_k="$2"
+  local namespace="$3"
+  local backend="$4"
+  local slug="$5"
+  local fn="ingo_vector_${slug}_query_vector"
+
+  if ! declare -F "$fn" >/dev/null 2>&1; then
+    echo "backend '$backend' does not implement ${fn}() — required when INGO_EMBEDDING_MODE=external" >&2
+    echo "  see docs/adapter-contract.md for the query_vector contract" >&2
+    return 2
+  fi
+
+  if ! declare -F ingo_embedder_text >/dev/null 2>&1; then
+    # shellcheck source=embedder.sh
+    # shellcheck disable=SC1091
+    source "${VECTOR_LIB_DIR}/embedder.sh"
+  fi
+
+  local vector json status
+  vector="$(ingo_embedder_text "$question" "query")"
+
+  set +e
+  json="$("$fn" "$vector" "$top_k" "$namespace")"
+  status=$?
+  set -e
+
+  if [ "$status" -ne 0 ]; then
+    return "$status"
+  fi
+
+  ingo_vector_require_normalized_query_json "$backend" "$json"
+}
+
 ingo_vector_backend_embed_jsonl() {
   local jsonl="$1"
   local namespace="$2"
@@ -111,6 +182,12 @@ ingo_vector_backend_embed_jsonl() {
   backend="$(ingo_vector_backend_resolve)"
   _ingo_vector_load_adapter "$backend"
   slug="$(_ingo_vector_slug "$backend")"
+
+  if [ "${INGO_EMBEDDING_MODE:-provider}" = "external" ]; then
+    _ingo_vector_embed_external_jsonl "$jsonl" "$namespace" "$backend" "$slug"
+    return
+  fi
+
   fn="ingo_vector_${slug}_embed_jsonl"
   _ingo_vector_require_fn "$backend" "$fn"
   "$fn" "$jsonl" "$namespace" "$raw_dir"
@@ -149,6 +226,12 @@ ingo_vector_backend_query_text() {
   backend="$(ingo_vector_backend_resolve)"
   _ingo_vector_load_adapter "$backend"
   slug="$(_ingo_vector_slug "$backend")"
+
+  if [ "${INGO_EMBEDDING_MODE:-provider}" = "external" ]; then
+    _ingo_vector_query_external "$question" "$top_k" "$namespace" "$backend" "$slug"
+    return
+  fi
+
   fn="ingo_vector_${slug}_query_text"
   _ingo_vector_require_fn "$backend" "$fn"
 

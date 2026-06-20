@@ -16,6 +16,9 @@ source "$ROOT_DIR/lib/manifest.sh"
 # shellcheck source=../lib/http.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
+# shellcheck source=../lib/embedder.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/embedder.sh"
 # shellcheck source=../lib/vector.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/vector.sh"
@@ -71,6 +74,9 @@ doctor() {
   ingo_require_bin curl
   ingo_require_bin jq
   ingo_vector_backend_doctor
+  if [ "${INGO_EMBEDDING_MODE:-provider}" = "external" ]; then
+    ingo_embedder_doctor
+  fi
   if [ "$INGO_ROLE" != "query" ]; then
     ingo_require_bin tesseract
     ingo_require_bin awk
