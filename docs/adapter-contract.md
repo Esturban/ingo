@@ -90,6 +90,56 @@ for normalizing whatever your backend returns into this shape.
 
 ---
 
+---
+
+## External embedding mode (optional)
+
+When `INGO_EMBEDDING_MODE=external`, ingo calls `lib/embedder.sh` to produce float vectors
+before reaching the adapter. Two additional functions unlock this path:
+
+### 4. `ingo_vector_<name>_upsert_vector_jsonl <vectorized_jsonl> <namespace>`
+
+Like `embed_jsonl`, but every line already has a `"vector": [float, ...]` field.
+Print the count of upserted vectors to stdout.
+
+```sh
+ingo_vector_chroma_upsert_vector_jsonl() {
+  local jsonl="$1" namespace="$2" count=0 line vector
+  # shellcheck disable=SC2094
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    vector="$(printf "%s" "$line" | jq -c '.vector')"
+    _chroma_upsert_with_vector "$line" "$vector" "$namespace"
+    count=$((count + 1))
+  done < "$jsonl"
+  printf "%s\n" "$count"
+}
+```
+
+### 5. `ingo_vector_<name>_query_vector <vector_json> <top_k> <namespace>`
+
+Like `query_text`, but the first argument is a compact JSON float array instead of a string.
+Output must conform to the same normalized shape.
+
+```sh
+ingo_vector_chroma_query_vector() {
+  local vector_json="$1" top_k="$2" namespace="$3"
+  # POST $vector_json to your ANN endpoint, normalize to:
+  # { "match_count": N, "matches": [ { "id","score","text","source","section","article" } ] }
+}
+```
+
+**Embedder configuration** (`INGO_EMBEDDING_MODE=external`):
+
+```sh
+INGO_EMBEDDER_BACKEND=ollama              # ollama | openai | voyage | cohere | together
+INGO_EMBEDDER_URL=http://localhost:11434  # default per backend
+INGO_EMBEDDER_MODEL=nomic-embed-text      # default per backend
+INGO_EMBEDDER_TOKEN=                      # required for cloud backends
+```
+
+---
+
 ## HTTP helper
 
 Your adapter can use ingo's built-in retry/backoff-aware curl wrapper:
@@ -113,12 +163,12 @@ before loading any adapter.
 
 ## Reference implementations
 
-| File | Backend | Notes |
-|------|---------|-------|
-| `lib/vector/upstash.sh` | Upstash Vector | Default; server-side text embedding |
-| `lib/vector/pinecone.sh` | Pinecone | Integrated-embedding indexes |
-| `lib/vector/qdrant.sh` | Qdrant | Inference-backed or BYO vectors |
-| `lib/vector/generic.sh` | Any REST API | Configure via env vars, no code needed |
+| File | Backend | Provider mode | External mode |
+|------|---------|---------------|---------------|
+| `lib/vector/upstash.sh` | Upstash Vector | Yes (server-side embed) | — |
+| `lib/vector/pinecone.sh` | Pinecone | Yes (integrated embed) | — |
+| `lib/vector/qdrant.sh` | Qdrant | Yes (`INGO_VECTOR_MODEL` required) | Yes (`upsert_vector_jsonl` + `query_vector`) |
+| `lib/vector/generic.sh` | Any REST API | Yes (server embeds) | Yes (`upsert_vector_jsonl` + `query_vector`) |
 
 ---
 

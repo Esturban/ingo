@@ -99,6 +99,11 @@ ingo_load_env() {
   fi
 
   : "${INGO_VECTOR_MODEL:=}"
+  : "${INGO_EMBEDDING_MODE:=provider}"
+  : "${INGO_EMBEDDER_BACKEND:=ollama}"
+  : "${INGO_EMBEDDER_URL:=}"
+  : "${INGO_EMBEDDER_MODEL:=}"
+  : "${INGO_EMBEDDER_TOKEN:=}"
 
   if [ -z "${UPSTASH_VECTOR_REST_URL:-}" ] && [ -n "$INGO_VECTOR_URL" ]; then
     UPSTASH_VECTOR_REST_URL="$INGO_VECTOR_URL"

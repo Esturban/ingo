@@ -117,6 +117,84 @@ ingo_vector_generic_embed_jsonl() {
   printf "%s\n" "$count"
 }
 
+ingo_vector_generic_upsert_vector_jsonl() {
+  local jsonl="$1"
+  local namespace="$2"
+  local count=0
+  local line id text source section article vector payload response status body
+
+  ingo_vector_generic_require_env || return $?
+
+  # shellcheck disable=SC2094
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    id="$(printf "%s" "$line" | jq -r '.id // ""')"
+    text="$(printf "%s" "$line" | jq -r '.text // ""')"
+    source="$(printf "%s" "$line" | jq -r '.source // ""')"
+    section="$(printf "%s" "$line" | jq -r '.section // ""')"
+    article="$(printf "%s" "$line" | jq -r '.article // ""')"
+    vector="$(printf "%s" "$line" | jq -c '.vector // []')"
+
+    payload="$(jq -n \
+      --arg id        "$id" \
+      --arg text      "$text" \
+      --arg namespace "$namespace" \
+      --arg source    "$source" \
+      --arg section   "$section" \
+      --arg article   "$article" \
+      --argjson vector "$vector" \
+      '{id:$id,vector:$vector,namespace:$namespace,metadata:{source:$source,section:$section,article:$article,text:$text}}')"
+
+    response="$(ingo_http_curl -sS -w "\n%{http_code}" \
+      -X POST "${INGO_VECTOR_URL}${INGO_GENERIC_UPSERT_PATH:-/upsert}" \
+      -H "Authorization: Bearer ${INGO_VECTOR_TOKEN}" \
+      -H "Content-Type: application/json" \
+      -d "$payload")"
+
+    status="$(printf "%s" "$response" | tail -n 1)"
+    body="$(printf "%s" "$response" | sed '$d')"
+
+    if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+      echo "upsert_vector failed (status $status): $body" >&2
+      return 5
+    fi
+    count=$((count + 1))
+  done < "$jsonl"
+
+  printf "%s\n" "$count"
+}
+
+ingo_vector_generic_query_vector() {
+  local vector_json="$1"
+  local top_k="$2"
+  local namespace="$3"
+  local payload response status body
+
+  ingo_vector_generic_require_env || return $?
+
+  payload="$(jq -n \
+    --argjson vector    "$vector_json" \
+    --argjson top_k     "$top_k" \
+    --arg     namespace "$namespace" \
+    '{vector:$vector,top_k:$top_k,namespace:$namespace}')"
+
+  response="$(ingo_http_curl -sS -w "\n%{http_code}" \
+    -X POST "${INGO_VECTOR_URL}${INGO_GENERIC_QUERY_PATH:-/query}" \
+    -H "Authorization: Bearer ${INGO_VECTOR_TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d "$payload")"
+
+  status="$(printf "%s" "$response" | tail -n 1)"
+  body="$(printf "%s" "$response" | sed '$d')"
+
+  if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+    echo "query_vector failed (status $status): $body" >&2
+    return 5
+  fi
+
+  printf "%s\n" "$body"
+}
+
 ingo_vector_generic_query_text() {
   local question="$1"
   local top_k="$2"
