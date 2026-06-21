@@ -127,9 +127,72 @@ EOF
   assert_contains "$(cat "$CAPTURED_FILE")" '"source": "src"' "qdrant embed stores normalized payload fields"
 }
 
+test_qdrant_external_embed_passes_vector() {
+  local tmp chunk count
+  tmp="$(mktemp -d)"
+  chunk="$tmp/sample.jsonl"
+
+  cat > "$chunk" <<'EOF'
+{"id":"id-1","text":"hola","source":"src","section":"s","article":"a","start":1,"end":2}
+EOF
+
+  export INGO_VECTOR_BACKEND="qdrant"
+  export INGO_VECTOR_URL="http://localhost:6333"
+  export INGO_EMBEDDING_MODE="external"
+  unset INGO_VECTOR_TOKEN
+  unset INGO_VECTOR_MODEL
+
+  # Stub embedder — return a known float vector without hitting a real server.
+  ingo_embedder_text() { printf '[0.1,0.2,0.3]'; }
+
+  count="$(ingo_embed_jsonl "$chunk" "legal-co" "")"
+
+  assert_eq "$count" "1" "qdrant external embed returns numeric count"
+  assert_contains "$(cat "$CAPTURED_FILE")" \
+    "URL=http://localhost:6333/collections/legal-co/points?wait=true" \
+    "qdrant external embed calls upsert endpoint"
+  assert_contains "$(cat "$CAPTURED_FILE")" '"vector":' \
+    "qdrant external embed includes vector field in payload"
+  assert_contains "$(cat "$CAPTURED_FILE")" '0.1' \
+    "qdrant external embed sends the stubbed vector values"
+
+  unset INGO_EMBEDDING_MODE
+  unset -f ingo_embedder_text
+  rm -rf "$tmp"
+}
+
+test_qdrant_external_query_passes_vector() {
+  export INGO_VECTOR_BACKEND="qdrant"
+  export INGO_VECTOR_URL="http://localhost:6333"
+  export INGO_VECTOR_TOKEN="secret"
+  export INGO_EMBEDDING_MODE="external"
+  unset INGO_VECTOR_MODEL
+
+  # Stub embedder — return a known float vector without hitting a real server.
+  ingo_embedder_text() { printf '[0.1,0.2,0.3]'; }
+
+  local json
+  json="$(ingo_query_text "hola" 3 "legal-co")"
+
+  assert_contains "$(cat "$CAPTURED_FILE")" \
+    "URL=http://localhost:6333/collections/legal-co/points/query" \
+    "qdrant external query calls query endpoint"
+  assert_contains "$(cat "$CAPTURED_FILE")" '"query":' \
+    "qdrant external query sends vector as query field"
+  assert_contains "$(cat "$CAPTURED_FILE")" '0.1' \
+    "qdrant external query sends the stubbed vector values"
+  assert_eq "$(printf "%s" "$json" | jq -r '.match_count')" "1" \
+    "qdrant external query normalizes match_count"
+
+  unset INGO_EMBEDDING_MODE
+  unset -f ingo_embedder_text
+}
+
 main() {
   test_qdrant_query_normalizes_contract
   test_qdrant_embed_uses_inference_payload
+  test_qdrant_external_embed_passes_vector
+  test_qdrant_external_query_passes_vector
   echo "ok"
 }
 
