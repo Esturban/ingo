@@ -143,6 +143,7 @@ EOF
   unset INGO_VECTOR_MODEL
 
   # Stub embedder — return a known float vector without hitting a real server.
+  # shellcheck disable=SC2329  # invoked indirectly via INGO_EMBEDDING_MODE=external dispatch
   ingo_embedder_text() { printf '[0.1,0.2,0.3]'; }
 
   count="$(ingo_embed_jsonl "$chunk" "legal-co" "")"
@@ -169,6 +170,7 @@ test_qdrant_external_query_passes_vector() {
   unset INGO_VECTOR_MODEL
 
   # Stub embedder — return a known float vector without hitting a real server.
+  # shellcheck disable=SC2329  # invoked indirectly via INGO_EMBEDDING_MODE=external dispatch
   ingo_embedder_text() { printf '[0.1,0.2,0.3]'; }
 
   local json
