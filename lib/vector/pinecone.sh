@@ -172,6 +172,105 @@ ingo_vector_pinecone_embed_jsonl() {
   printf "%s\n" "$count"
 }
 
+ingo_vector_pinecone_upsert_vector_jsonl() {
+  local jsonl="$1"
+  local namespace="$2"
+  local text_field count line tmp_records payload response status body_only
+
+  ingo_vector_pinecone_require_env || return $?
+  text_field="$(ingo_vector_pinecone_text_field)"
+  count=0
+  tmp_records="$(mktemp)"
+
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    line="$(printf "%s" "$line" | LC_ALL=C tr -d '\000-\011\013\014\016-\037\177')"
+    printf "%s" "$line" | jq -c \
+      --arg text_field "$text_field" \
+      '{
+        id: .id,
+        values: (.vector // []),
+        metadata: (
+          {($text_field): .text, source: .source, section: .section, article: .article}
+          | with_entries(select(.value != null and .value != ""))
+        )
+      }' >> "$tmp_records"
+    count=$((count + 1))
+  done < "$jsonl"
+
+  payload="$(jq -s \
+    --arg namespace "$namespace" \
+    '{vectors: ., namespace: $namespace}' \
+    "$tmp_records")"
+
+  rm -f "$tmp_records"
+
+  response="$(ingo_http_curl -sS -w "\n%{http_code}" \
+    -X POST "$(ingo_vector_pinecone_base_url)/vectors/upsert" \
+    -H "Api-Key: $(ingo_vector_pinecone_token)" \
+    -H "X-Pinecone-Api-Version: $(ingo_vector_pinecone_api_version)" \
+    -H "Content-Type: application/json" \
+    -d "$payload")"
+
+  status="$(printf "%s" "$response" | tail -n 1)"
+  body_only="$(printf "%s" "$response" | sed '$d')"
+
+  if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+    echo "upsert_vector failed (status $status): $body_only" >&2
+    return 5
+  fi
+
+  printf "%s\n" "$count"
+}
+
+ingo_vector_pinecone_query_vector() {
+  local vector_json="$1"
+  local top_k="$2"
+  local namespace="$3"
+  local text_field payload response status body
+
+  ingo_vector_pinecone_require_env || return $?
+  text_field="$(ingo_vector_pinecone_text_field)"
+
+  payload="$(jq -n \
+    --argjson vector    "$vector_json" \
+    --argjson top_k     "$top_k" \
+    --arg     namespace "$namespace" \
+    '{vector: $vector, topK: $top_k, namespace: $namespace, includeMetadata: true}')"
+
+  response="$(ingo_http_curl -sS -w "\n%{http_code}" \
+    -X POST "$(ingo_vector_pinecone_base_url)/query" \
+    -H "Accept: application/json" \
+    -H "Api-Key: $(ingo_vector_pinecone_token)" \
+    -H "X-Pinecone-Api-Version: $(ingo_vector_pinecone_api_version)" \
+    -H "Content-Type: application/json" \
+    -d "$payload")"
+
+  status="$(printf "%s" "$response" | tail -n 1)"
+  body="$(printf "%s" "$response" | sed '$d')"
+
+  if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
+    echo "query_vector failed (status $status): $body" >&2
+    return 5
+  fi
+
+  printf "%s\n" "$body" | jq --arg text_field "$text_field" '
+    def ms: (.matches // []);
+    {
+      match_count: (ms | length),
+      matches: (
+        ms | map({
+          id: (.id // ""),
+          score: (.score // 0),
+          text: (.metadata[$text_field] // .metadata.text // ""),
+          source: (.metadata.source // ""),
+          section: (.metadata.section // ""),
+          article: (.metadata.article // "")
+        })
+      )
+    }'
+}
+
 ingo_vector_pinecone_query_text() {
   local question="$1"
   local top_k="$2"
