@@ -1,4 +1,5 @@
 .env
+.codex/
 .vscode/
 tmp/
 out/
@@ -9,3 +10,10 @@ data
 .self-improve/
 .ralph/
 data/
+.claude/
+.wolf/
+.codegraph/
+specs/
+
+# Agent harness (public repo: keep AGENTS.md local, never commit)
+AGENTS.md

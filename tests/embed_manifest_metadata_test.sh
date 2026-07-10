@@ -57,8 +57,8 @@ norm_year=2015
 tags=anla,energia
 META
 
-  UPSTASH_VECTOR_REST_URL="https://vector.example.test"
-  UPSTASH_VECTOR_REST_TOKEN="token"
+  export UPSTASH_VECTOR_REST_URL="https://vector.example.test"
+  export UPSTASH_VECTOR_REST_TOKEN="token"
   ingo_upsert_line "$line" "ns" "$meta"
   payload="$(cat "$CAPTURED_PAYLOAD_FILE")"
 

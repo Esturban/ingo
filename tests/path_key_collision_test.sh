@@ -13,6 +13,11 @@ source "$ROOT_DIR/lib/chunk.sh"
 # shellcheck source=../lib/embed.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/embed.sh"
+# Pre-load the vector dispatch layer so ingo_embed_jsonl's lazy-load doesn't
+# override the per-test mock of ingo_vector_upstash_upsert_line_impl below.
+# shellcheck source=../lib/vector.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/vector.sh"
 
 fail() {
   echo "FAIL: $*" >&2
@@ -48,6 +53,7 @@ assert_ne() {
 test_collision_safe_keys_and_embed_meta_lookup() {
   local tmp mock_bin root inbox raw chunks txt_a txt_b key_a key_b
   local first_raw_txt second_raw_txt
+  unset INGO_VECTOR_BACKEND INGO_VECTOR_URL INGO_VECTOR_TOKEN INGO_VECTOR_MODEL
   tmp="$(mktemp -d)"
   mock_bin="$tmp/mock-bin"
   root="$tmp/repo"
@@ -104,7 +110,7 @@ EOF
   assert_eq "$second_raw_txt" "$first_raw_txt" "artifact keys stay stable across reruns"
 
   local seen_a=0 seen_b=0
-  ingo_upsert_line() {
+  ingo_vector_upstash_upsert_line_impl() {
     local line="$1"
     local _namespace="$2"
     local meta_file="$3"
