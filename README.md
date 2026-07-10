@@ -1,10 +1,24 @@
 # ingo
 
-Minimal shell runtime to ingest Spanish legal PDFs into Upstash Vector and query them from the same CLI.
+Minimal shell runtime to ingest Spanish legal PDFs into a vector backend and query them from the same CLI. Upstash remains the default path, and Pinecone or Qdrant can be selected through the same harness.
 
 ## What This Repo Does
 
-`ingo` runs an end-to-end ingest pipeline (fetch -> OCR -> chunk -> embed -> cleanup) and exposes a query command over the same Upstash Vector namespace. It supports two deployment roles: `INGO_ROLE=all` for ingest/query workers and `INGO_ROLE=query` for query-only devices where ingest commands are blocked.
+`ingo` runs an end-to-end ingest pipeline (fetch -> OCR -> chunk -> embed -> cleanup) and exposes a query command over the same configured namespace or collection. It supports two deployment roles: `INGO_ROLE=all` for ingest/query workers and `INGO_ROLE=query` for query-only devices where ingest commands are blocked.
+
+## Workflow Model
+
+`ingo` keeps one CLI surface, but it operates in two distinct workflows:
+
+- Direct ingest workflow:
+  - use `fetch --url` to download one known document, optionally with `--dir` to place it in a chosen inbox.
+  - use `run --url/--dir` when you want the direct fetch -> OCR -> chunk -> embed path.
+  - this is the simpler fetch -> OCR -> chunk -> embed path.
+- Corpus discovery workflow:
+  - use `fetch --seeds` when you want to discover, download, ledger, and curate a broader document corpus before indexing it.
+  - this workflow produces crawl state, manifests, skipped/error ledgers, downloads, and extracted text under `INGO_CORPUS_DIR`.
+
+The command names and flags are shared on purpose. The operational guarantees are not identical: `run` is a fail-fast batch wrapper for the direct ingest path, while `fetch --seeds` is the corpus-oriented workflow with append-only ledgers and rerun-aware crawl state.
 
 ## Features
 
@@ -30,7 +44,7 @@ Runtime dependencies checked by `bin/ingo doctor`:
 
 Notes:
 
-- Query-only role (`INGO_ROLE=query`) requires only query dependencies (`curl`, `jq`) and Upstash credentials.
+- Query-only role (`INGO_ROLE=query`) requires only query dependencies (`curl`, `jq`) and vector backend credentials.
 - Ingest role (`INGO_ROLE=all`) requires the full OCR + text processing stack above.
 
 ## Quick Start (5 Minutes)
@@ -41,10 +55,16 @@ Notes:
 cp .env.example .env
 ```
 
-2. Set required values in `.env`:
+2. Set required values in `.env` for one backend:
 
-- `UPSTASH_VECTOR_REST_URL`
-- `UPSTASH_VECTOR_REST_TOKEN`
+- `INGO_VECTOR_BACKEND=upstash`
+- `INGO_VECTOR_URL`
+- `INGO_VECTOR_TOKEN`
+
+Or switch to:
+
+- `INGO_VECTOR_BACKEND=pinecone` with `INGO_PINECONE_TEXT_FIELD` if your index uses integrated embeddings
+- `INGO_VECTOR_BACKEND=qdrant` with `INGO_VECTOR_MODEL` for provider-side inference
 
 3. Verify setup:
 
@@ -72,26 +92,26 @@ bin/ingo query "¿Qué exige la licencia ambiental para vertimientos?" --top-k 8
 | `bin/ingo fetch` | Discover PDFs in inbox, download one URL, or run document-only seed crawl into corpus artifacts | `--url URL`, `--seeds FILE`, `--crawl-depth N`, `--allow-hosts FILE`, `--manifest FILE`, `--progress-every N`, `--snapshot-pages`, `--verbose`, `--reset-manifests`, `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo ocr` | OCR PDFs into `data/raw/*.txt` | `--dir DIR` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo chunk` | Convert OCR text to chunk JSONL | `--strict`, `--no-strict` | Blocked when `INGO_ROLE=query` |
-| `bin/ingo embed` | Upsert chunks into Upstash Vector | `--force` | Blocked when `INGO_ROLE=query` |
+| `bin/ingo embed` | Upsert chunks into the configured vector backend | `--force` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo cleanup` | Remove local intermediates based on cleanup policy | `--markers` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo run` | Run fetch -> ocr -> chunk -> embed -> cleanup pipeline | `--url URL`, `--dir DIR`, `--strict`, `--no-strict`, `--force` | Blocked when `INGO_ROLE=query` |
 | `bin/ingo query "<question>"` | Query indexed content in configured namespace | `--top-k N` (positive integer only) | Available in all roles |
 
 Common flows:
 
-Local folder ingest:
+Direct ingest from local folder:
 
 ```bash
 bin/ingo run --dir data/ingest --strict
 ```
 
-URL one-shot ingest:
+Direct ingest from one known document URL:
 
 ```bash
 bin/ingo run --url "https://example.com/doc.pdf" --strict
 ```
 
-Seed-crawl discovery (corpus mode via `fetch`):
+Corpus discovery and download (`fetch --seeds` workflow):
 
 ```bash
 bin/ingo fetch \
@@ -108,6 +128,7 @@ Notes:
 - Extraction in `fetch --seeds` is scoped to files downloaded in the current run.
 - Host policy in seed crawl is `seed hosts + --allow-hosts` (merged into a runtime allow-hosts file).
 - Use `--reset-manifests` only when you explicitly want a clean ledger for a new run.
+- `fetch --seeds` is the corpus workflow entrypoint; it is not just a larger version of `fetch --url`.
 
 Runtime visibility:
 - `crawl-progress`: discovery/queue phase counters.
@@ -138,6 +159,7 @@ rm -f "data/corpus/downloads/unwanted-file.pdf"
 Index curated corpus using existing pipeline:
 
 ```bash
+# `run` does not orchestrate the corpus workflow; continue with explicit stages.
 bin/ingo chunk --no-strict
 bin/ingo embed
 ```
@@ -163,8 +185,14 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 
 | Variable | Required | Default (`lib/env.sh`) | Description |
 | --- | --- | --- | --- |
-| `UPSTASH_VECTOR_REST_URL` | Yes | none | Base URL for Upstash Vector REST API. |
-| `UPSTASH_VECTOR_REST_TOKEN` | Yes | none | Bearer token for Upstash Vector REST API. |
+| `INGO_VECTOR_BACKEND` | No | `upstash` | Active vector backend. Supported values: `upstash`, `pinecone`, `qdrant`. |
+| `INGO_VECTOR_URL` | Yes | none | Base URL for the active vector backend. |
+| `INGO_VECTOR_TOKEN` | Backend-specific | none | API token for the active vector backend. Required for Upstash and Pinecone; optional for local unauthenticated Qdrant. |
+| `INGO_VECTOR_MODEL` | Qdrant only | empty | Provider-side text inference model for Qdrant. Required for the current Qdrant adapter because BYO embeddings are not implemented yet. |
+| `INGO_PINECONE_TEXT_FIELD` | Pinecone only | `chunk_text` | Record field mapped to the integrated embedding source text on Pinecone indexes. |
+| `INGO_PINECONE_API_VERSION` | Pinecone only | `2025-10` | Pinecone date-based API version header used for query and upsert requests. |
+| `UPSTASH_VECTOR_REST_URL` | Legacy alias | none | Legacy alias for `INGO_VECTOR_URL` on the Upstash backend. |
+| `UPSTASH_VECTOR_REST_TOKEN` | Legacy alias | none | Legacy alias for `INGO_VECTOR_TOKEN` on the Upstash backend. |
 | `INGO_INBOX` | No | `$HOME/ingest` | Source directory for PDFs. |
 | `INGO_RAW_DIR` | No | `data/raw` | OCR output directory (relative to repo root). |
 | `INGO_CHUNK_DIR` | No | `data/chunks` | Chunk JSONL output directory (relative to repo root). |
@@ -187,12 +215,6 @@ Use `.env.example` as a starter, then adjust based on runtime defaults below.
 | `INGO_SNAPSHOT_PAGES_TO_PDF` | No | `0` | When `1`, attempt `wkhtmltopdf` page snapshots for eligible pages with no discovered document links. |
 | `INGO_CRAWL_ALLOW_HTTP` | No | `0` | When `0`, crawl upgrades `http://` URLs to `https://` by default to avoid insecure/dead HTTP endpoints. |
 | `INGO_SKIP_PROBE_FOR_ALLOWED_EXTENSIONS` | No | `1` | When `1`, skip MIME probe round-trip for allowlisted extensions (`pdf/docx/xlsx/xlsm`) to speed up large runs. |
-
-Spreadsheet handling:
-
-- `.xlsx` and `.xlsm` are downloaded and converted to text for chunking/embedding.
-- Extraction priority is `xlsx2csv` -> `in2csv` -> Python `openpyxl` fallback.
-- If none are available, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
 | `INGO_HTTP_CONNECT_TIMEOUT` | No | `5` | HTTP connect timeout (seconds). |
 | `INGO_HTTP_READ_TIMEOUT` | No | `30` | HTTP max request time (seconds). |
 | `INGO_HTTP_DOWNLOAD_TIMEOUT` | No | `120` | HTTP max time for document downloads (seconds). |
@@ -201,6 +223,39 @@ Spreadsheet handling:
 | `INGO_HTTP_RETRY_BACKOFF_MAX` | No | `8` | Maximum retry backoff (seconds). |
 | `INGO_HTTP_RETRY_BACKOFF_FACTOR` | No | `2` | Backoff multiplier between retries. |
 | `INGO_HTTP_RETRY_AFTER_MAX` | No | `INGO_HTTP_RETRY_BACKOFF_MAX` | Maximum accepted `Retry-After` sleep (seconds). |
+
+Spreadsheet handling:
+
+- `.xlsx` and `.xlsm` are downloaded and converted to text for chunking/embedding.
+- Extraction priority is `xlsx2csv` -> `in2csv` -> Python `openpyxl` fallback.
+- If none are available, spreadsheet extraction is marked `unsupported` and the original files are still preserved.
+
+Backend notes:
+
+- `upstash` remains the default backend and works with the same CLI behavior as before.
+- `pinecone` uses `INGO_NAMESPACE` as the Pinecone namespace and expects an integrated-embedding index.
+- `pinecone` stores chunk text in `INGO_PINECONE_TEXT_FIELD` and sends metadata fields alongside it.
+- `qdrant` uses `INGO_NAMESPACE` as the Qdrant collection name.
+- The current Qdrant path depends on provider-side text inference through `INGO_VECTOR_MODEL`.
+- Bring-your-own embeddings are not implemented yet.
+
+Pinecone example:
+
+```bash
+INGO_VECTOR_BACKEND="pinecone"
+INGO_VECTOR_URL="https://your-index-host.pinecone.io"
+INGO_VECTOR_TOKEN="your-pinecone-api-key"
+INGO_PINECONE_TEXT_FIELD="chunk_text"
+INGO_PINECONE_API_VERSION="2025-10"
+```
+
+Qdrant example:
+
+```bash
+INGO_VECTOR_BACKEND="qdrant"
+INGO_VECTOR_URL="http://localhost:6333"
+INGO_VECTOR_MODEL="your-qdrant-inference-model"
+```
 
 Legacy compatibility:
 
@@ -222,6 +277,9 @@ Default inbox is `$HOME/ingest` unless overridden by `INGO_INBOX` or command `--
 
 ## Operational Notes
 
+- Workflow boundaries:
+  - `run` remains a fail-fast batch wrapper for the direct ingest workflow.
+  - corpus discovery stays explicit: `fetch --seeds` first, then curate, then `chunk` and `embed`.
 - Relevance behavior:
   - `chunk --strict` (or default `INGO_RELEVANCE_MODE=strict`) rejects low-signal text into `INGO_REJECTED_DIR`.
   - `chunk --no-strict` disables relevance filtering for that run.
@@ -247,11 +305,18 @@ Key coverage areas:
 - `http_wrapper_test.sh`: validates timeout/retry/backoff + wrapper integration in fetch/embed/query.
 - `embed_marker_rerun_test.sh`: validates marker skip/re-embed/force behavior.
 - `path_key_collision_test.sh`: validates collision-safe artifact keys and meta lookup fidelity.
+- `vector_backend_contract_test.sh`: validates backend resolution, backend-aware doctor output, env precedence, and unsupported capability errors.
+- `pinecone_adapter_test.sh`: validates Pinecone query normalization and NDJSON upsert payload wiring.
+- `qdrant_adapter_test.sh`: validates Qdrant query normalization and inference payload wiring.
 
 ## Troubleshooting
 
-- `missing env var: UPSTASH_VECTOR_REST_URL` or `UPSTASH_VECTOR_REST_TOKEN`:
-  - Define both in `.env` or shell environment.
+- `missing env var: INGO_VECTOR_URL` or `INGO_VECTOR_TOKEN`:
+  - Define the generic backend vars in `.env` or shell environment.
+- `vector backend 'qdrant' requires INGO_VECTOR_MODEL for provider-side text inference`:
+  - Set `INGO_VECTOR_MODEL` to a model supported by your Qdrant deployment, or use the default Upstash backend until BYO embeddings exist.
+- `missing env var: INGO_VECTOR_TOKEN` on Pinecone:
+  - Set `INGO_VECTOR_TOKEN` to a Pinecone API key and verify `INGO_VECTOR_URL` points at the index host, not the control plane.
 - `missing OCR language data for INGO_LANG=spa`:
   - Install Tesseract language data for `INGO_LANG` and verify with `tesseract --list-langs`.
 - `invalid --top-k: must be a positive integer`:

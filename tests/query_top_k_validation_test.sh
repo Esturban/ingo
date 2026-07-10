@@ -88,14 +88,14 @@ test_valid_top_k_values_are_accepted() {
 
   out="$(run_query "$mock_bin" --top-k 1 2>&1)"
   assert_contains "$out" '"match_count"' "query output is returned for --top-k=1"
-  assert_eq "$(wc -l < "$jq_calls" | tr -d ' ')" "2" "jq is invoked twice for valid --top-k=1"
+  assert_eq "$(wc -l < "$jq_calls" | tr -d ' ')" "3" "jq is invoked three times for valid --top-k=1"
   assert_eq "$(wc -l < "$curl_calls" | tr -d ' ')" "1" "curl is invoked once for valid --top-k=1"
 
   : > "$jq_calls"
   : > "$curl_calls"
   out="$(run_query "$mock_bin" --top-k 8 2>&1)"
   assert_contains "$out" '"match_count"' "query output is returned for --top-k=8"
-  assert_eq "$(wc -l < "$jq_calls" | tr -d ' ')" "2" "jq is invoked twice for valid --top-k=8"
+  assert_eq "$(wc -l < "$jq_calls" | tr -d ' ')" "3" "jq is invoked three times for valid --top-k=8"
   assert_eq "$(wc -l < "$curl_calls" | tr -d ' ')" "1" "curl is invoked once for valid --top-k=8"
 }
 

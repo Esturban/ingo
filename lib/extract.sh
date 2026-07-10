@@ -185,6 +185,7 @@ ingo_extract_manifest_documents() {
   total_count="$(jq -r 'select((.status // "") == "downloaded") | .doc_id' "$manifest_file" 2>/dev/null | wc -l | tr -d ' ')"
   echo "extract-start: candidates=$total_count" >&2
 
+  # shellcheck disable=SC2094
   while IFS= read -r line; do
     [ -n "$line" ] || continue
     if [ "$(printf "%s" "$line" | jq -r '.status // ""')" != "downloaded" ]; then

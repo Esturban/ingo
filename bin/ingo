@@ -16,6 +16,12 @@ source "$ROOT_DIR/lib/manifest.sh"
 # shellcheck source=../lib/http.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/http.sh"
+# shellcheck source=../lib/embedder.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/embedder.sh"
+# shellcheck source=../lib/vector.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/vector.sh"
 # shellcheck source=../lib/crawl.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/crawl.sh"
@@ -40,7 +46,7 @@ source "$ROOT_DIR/lib/query.sh"
 
 usage() {
   cat <<'EOF'
-ingo - shell runtime for Upstash Vector (ingest + query)
+ingo - shell runtime for vector ingest + query
 
 Usage:
   ingo doctor
@@ -67,7 +73,10 @@ doctor() {
   ingo_require_positive_integer "INGO_CRAWL_DEPTH" "$INGO_CRAWL_DEPTH"
   ingo_require_bin curl
   ingo_require_bin jq
-  ingo_require_env
+  ingo_vector_backend_doctor
+  if [ "${INGO_EMBEDDING_MODE:-provider}" = "external" ]; then
+    ingo_embedder_doctor
+  fi
   if [ "$INGO_ROLE" != "query" ]; then
     ingo_require_bin tesseract
     ingo_require_bin awk
@@ -89,6 +98,9 @@ doctor() {
 }
 
 cmd_fetch() {
+  # Keep one command surface, but preserve two workflow branches:
+  # direct/local ingest (`--url` / `--dir`) and corpus discovery (`--seeds`).
+  # Future changes here should prefer narrow helpers over adding more inline policy.
   ingo_load_env
   ingo_require_ingest_enabled
   ingo_require_bin curl
@@ -351,7 +363,6 @@ cmd_embed() {
   ingo_prepare_dirs
   ingo_require_bin curl
   ingo_require_bin jq
-  ingo_require_env
 
   local force=0
   while [ "$#" -gt 0 ]; do
@@ -379,7 +390,7 @@ cmd_embed() {
       continue
     fi
 
-    count="$(ingo_embed_jsonl "$jsonl" "$INGO_NAMESPACE" "$ROOT_DIR/$INGO_RAW_DIR")"
+    count="$(ingo_vector_backend_embed_jsonl "$jsonl" "$INGO_NAMESPACE" "$ROOT_DIR/$INGO_RAW_DIR")"
     ingo_write_embed_marker "$marker" "$chunk_hash" "$INGO_NAMESPACE" "$count"
     echo "embed: $jsonl -> $count vectors"
   done
@@ -511,7 +522,6 @@ cmd_query() {
   ingo_load_env
   ingo_require_bin curl
   ingo_require_bin jq
-  ingo_require_env
 
   local question="${1:-}"
   shift || true
@@ -542,7 +552,7 @@ cmd_query() {
       ;;
   esac
 
-  ingo_query_text "$question" "$top_k" "$INGO_NAMESPACE"
+  ingo_vector_backend_query_text "$question" "$top_k" "$INGO_NAMESPACE"
 }
 
 main() {
