@@ -17,3 +17,9 @@ specs/
 
 # Agent harness (public repo: keep AGENTS.md local, never commit)
 AGENTS.md
+CLAUDE.md
+GEMINI.md
+gemini.md
+.cursor/
+copilot-instructions.md
+*.code-workspace
