@@ -109,7 +109,7 @@ ingo_ocr_pdf() {
 
     local tmpdir page_img page_base page_txt
     tmpdir="$(mktemp -d "$out_dir/.ocr-${stem}.XXXX")"
-    trap 'rm -rf "$tmpdir"' RETURN
+    trap 'rm -rf "${tmpdir:-}"' RETURN
 
     if ! pdftoppm -r 300 -png "$pdf" "$tmpdir/$stem" >/dev/null; then
       echo "ocr-error: pdftoppm failed for $pdf" >&2
@@ -117,6 +117,7 @@ ingo_ocr_pdf() {
     fi
 
     : > "$out_txt"
+    local page_no=0
     for page_img in "$tmpdir"/"$stem"-*.png; do
       [ -e "$page_img" ] || continue
       page_base="${page_img%.png}"
@@ -125,6 +126,10 @@ ingo_ocr_pdf() {
         return 5
       fi
       page_txt="$page_base.txt"
+      # Form feed between pages (like pdftotext) so lib/chunk.sh can track
+      # page numbers; empty pages still get one so later pages stay aligned.
+      [ "$page_no" -gt 0 ] && printf '\f' >> "$out_txt"
+      page_no=$((page_no + 1))
       if [ -s "$page_txt" ]; then
         cat "$page_txt" >> "$out_txt"
         printf "\n" >> "$out_txt"

@@ -113,10 +113,50 @@ test_offsets_open_to_the_exact_verbatim_text() {
     || fail "one or more chunks' (page, line_start, line_end) do not open to their own verbatim text"
 }
 
+test_new_section_clears_article_markers() {
+  local tmp out
+  tmp="$(mktemp -d)"
+  printf 'CAPITULO I\n\nArticulo 1. Objeto.\n\nTexto del articulo uno.\n\nCAPITULO II\n\nIntroduccion del segundo capitulo.\n' > "$tmp/doc.txt"
+  INGO_SECTION_PATTERN='^[[:space:]]*(capitulo)[[:space:]]+' \
+  INGO_ARTICLE_PATTERN='^[[:space:]]*(articulo)[[:space:]]+[0-9]' \
+    ingo_chunk_txt "$tmp/doc.txt" "$tmp/out.jsonl" 1400 0
+  assert_eq "$(jq -r 'select(.text|test("CAPITULO II|Introduccion")) | .article' "$tmp/out.jsonl" | sort -u | tr -d '\n')" "" \
+    "chunks under a new section must not carry the previous article"
+}
+
+test_no_overlap_only_duplicate_chunks() {
+  local tmp out
+  tmp="$(mktemp -d)"
+  printf 'linea uno del parrafo\nlinea dos del parrafo\n\n\n\nOtro parrafo distinto\n' > "$tmp/doc.txt"
+  ingo_chunk_txt "$tmp/doc.txt" "$tmp/out.jsonl" 1400 10
+  assert_eq "$(jq -c '.text' "$tmp/out.jsonl" | sort | uniq -d | wc -l | tr -d ' ')" "0" "no chunk text may repeat"
+  assert_eq "$(jq -r 'select(.text=="linea dos del parrafo")' "$tmp/out.jsonl" | wc -l | tr -d ' ')" "0" "overlap tail alone must not be emitted"
+}
+
+test_ocr_fallback_separates_pages_with_form_feed() {
+  local tmp bin
+  tmp="$(mktemp -d)"
+  bin="$tmp/bin"
+  mkdir -p "$bin" "$tmp/out"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$bin/pdftotext"
+  printf '#!/usr/bin/env bash\nfor i in 1 2 3; do : > "${@: -1}-$i.png"; done\n' > "$bin/pdftoppm"
+  printf '#!/usr/bin/env bash\necho "texto $(basename "$1" .png)" > "$2.txt"\n' > "$bin/tesseract"
+  chmod +x "$bin"/*
+  : > "$tmp/a.pdf"
+  # shellcheck source=../lib/ocr.sh
+  # shellcheck disable=SC1091
+  source "$ROOT_DIR/lib/ocr.sh"
+  PATH="$bin:$PATH" ingo_ocr_pdf "$tmp/a.pdf" "$tmp/out" spa "$tmp" >/dev/null
+  assert_eq "$(tr -cd '\f' < "$tmp"/out/*.txt | wc -c | tr -d ' ')" "2" "3 OCR pages need 2 form feeds"
+}
+
 main() {
   test_page_tracking_survives_a_blank_page
   test_article_is_never_split_across_chunks
   test_offsets_open_to_the_exact_verbatim_text
+  test_new_section_clears_article_markers
+  test_no_overlap_only_duplicate_chunks
+  test_ocr_fallback_separates_pages_with_form_feed
   echo "ok"
 }
 

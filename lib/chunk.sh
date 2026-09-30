@@ -64,6 +64,7 @@ ingo_chunk_txt() {
       last_content_line = page_line
       buf = first_line
       buf_linenos = page_line
+      buf_fresh = 1
     }
 
     # Retain trailing whole lines of the just-flushed buffer as the seed of
@@ -110,6 +111,7 @@ ingo_chunk_txt() {
       buf_line_start = lns[n - k + 1] + 0
       start_pos = flush_end_pos - length(tail)
       buf = tail
+      buf_fresh = 0
     }
 
     function emit_chunk(text, sect, art, par_mark, num_mark, start_p, end_p, pg, para_no, line_s, line_e,    clean, id) {
@@ -119,6 +121,14 @@ ingo_chunk_txt() {
       id = source "-" NR "-" start_p "-" end_p
       printf("{\"id\":\"%s\",\"source\":\"%s\",\"page\":%d,\"paragraph\":%d,\"line_start\":%d,\"line_end\":%d,\"section\":\"%s\",\"article\":\"%s\",\"paragraph_marker\":\"%s\",\"numeral_marker\":\"%s\",\"start\":%d,\"end\":%d,\"text\":\"%s\"}\n",
         esc(id), esc(source), pg, para_no, line_s, line_e, esc(sect), esc(art), esc(par_mark), esc(num_mark), start_p, end_p, esc(clean))
+    }
+
+    # Emit the buffer only if it holds text beyond a retained overlap tail;
+    # a buffer that is nothing but the tail of the previous chunk would
+    # duplicate that chunk.
+    function flush_buf(end_p) {
+      if (!buf_fresh) return
+      emit_chunk(buf, section, article, paragraph_marker, numeral_marker, start_pos, end_p, buf_start_page, buf_para, buf_line_start, last_content_line)
     }
 
     BEGIN {
@@ -132,6 +142,7 @@ ingo_chunk_txt() {
       paragraph_marker = ""
       numeral_marker = ""
       buf = ""
+      buf_fresh = 0
       buf_start_page = 1
       buf_start_article = ""
       buf_para = 0
@@ -151,7 +162,7 @@ ingo_chunk_txt() {
       # every later page number off by one for the rest of the document.
       while (index(raw, FF) == 1) {
         if (length(buf) > 0) {
-          emit_chunk(buf, section, article, paragraph_marker, numeral_marker, start_pos, pos, buf_start_page, buf_para, buf_line_start, last_content_line)
+          flush_buf(pos)
           buf = ""
         }
         page += 1
@@ -173,11 +184,14 @@ ingo_chunk_txt() {
         # Any structural heading (titulo/capitulo/seccion/articulo/paragrafo/
         # numeral) always starts a fresh chunk: never let one chunk of text
         # straddle two different legal citation units.
-        emit_chunk(buf, section, article, paragraph_marker, numeral_marker, start_pos, pos, buf_start_page, buf_para, buf_line_start, last_content_line)
+        flush_buf(pos)
         buf = ""
       }
       if (is_new_section) {
         section = line
+        article = ""
+        paragraph_marker = ""
+        numeral_marker = ""
       }
       if (is_new_article) {
         article = line
@@ -193,8 +207,8 @@ ingo_chunk_txt() {
       }
 
       if (length(line) == 0) {
-        if (length(buf) > 0) {
-          emit_chunk(buf, section, article, paragraph_marker, numeral_marker, start_pos, pos, buf_start_page, buf_para, buf_line_start, last_content_line)
+        if (length(buf) > 0 && buf_fresh) {
+          flush_buf(pos)
           prev_buf = buf
           prev_linenos = buf_linenos
           retain_overlap_tail(pos)
@@ -207,11 +221,12 @@ ingo_chunk_txt() {
         } else {
           buf = buf "\n" line
           buf_linenos = buf_linenos " " page_line
+          buf_fresh = 1
         }
       }
 
       if (length(buf) >= chunk_size) {
-        emit_chunk(buf, section, article, paragraph_marker, numeral_marker, start_pos, pos + length(line), buf_start_page, buf_para, buf_line_start, last_content_line)
+        flush_buf(pos + length(line))
         prev_buf = buf
         prev_linenos = buf_linenos
         retain_overlap_tail(pos + length(line))
@@ -222,7 +237,7 @@ ingo_chunk_txt() {
 
     END {
       if (length(buf) > 0) {
-        emit_chunk(buf, section, article, paragraph_marker, numeral_marker, start_pos, pos, buf_start_page, buf_para, buf_line_start, last_content_line)
+        flush_buf(pos)
       }
     }
     ' "$txt" > "$out_jsonl"
