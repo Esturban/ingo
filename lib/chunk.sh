@@ -64,6 +64,7 @@ ingo_chunk_txt() {
       last_content_line = page_line
       buf = first_line
       buf_linenos = page_line
+      buf_offsets = pos
       buf_fresh = 1
     }
 
@@ -81,13 +82,14 @@ ingo_chunk_txt() {
     # subtracting a line count from `last_content_line` (that arithmetic
     # silently assumes no gaps, which is false once a chunk has already
     # crossed one blank line).
-    function retain_overlap_tail(flush_end_pos,    n, arr, lns, i, acc, k, tail) {
+    function retain_overlap_tail(    n, arr, lns, offs, i, acc, k, tail) {
       buf = ""
       if (overlap <= 0 || article != buf_start_article) {
         return
       }
       n = split(prev_buf, arr, "\n")
       split(prev_linenos, lns, " ")
+      split(prev_offsets, offs, " ")
       acc = 0
       k = 0
       for (i = n; i >= 1; i--) {
@@ -100,16 +102,18 @@ ingo_chunk_txt() {
       }
       tail = arr[n - k + 1]
       buf_linenos = lns[n - k + 1]
+      buf_offsets = offs[n - k + 1]
       for (i = n - k + 2; i <= n; i++) {
         tail = tail "\n" arr[i]
         buf_linenos = buf_linenos " " lns[i]
+        buf_offsets = buf_offsets " " offs[i]
       }
       buf_start_page = page
       buf_start_article = article
       para_in_page += 1
       buf_para = para_in_page
       buf_line_start = lns[n - k + 1] + 0
-      start_pos = flush_end_pos - length(tail)
+      start_pos = offs[n - k + 1] + 0
       buf = tail
       buf_fresh = 0
     }
@@ -148,6 +152,7 @@ ingo_chunk_txt() {
       buf_para = 0
       buf_line_start = 0
       buf_linenos = ""
+      buf_offsets = ""
       start_pos = 1
       pos = 1
     }
@@ -169,6 +174,7 @@ ingo_chunk_txt() {
         page_line = 0
         para_in_page = 0
         raw = substr(raw, 2)
+        pos += 1
       }
       line = raw
 
@@ -211,7 +217,8 @@ ingo_chunk_txt() {
           flush_buf(pos)
           prev_buf = buf
           prev_linenos = buf_linenos
-          retain_overlap_tail(pos)
+          prev_offsets = buf_offsets
+          retain_overlap_tail()
         }
       } else {
         last_content_line = page_line
@@ -221,6 +228,7 @@ ingo_chunk_txt() {
         } else {
           buf = buf "\n" line
           buf_linenos = buf_linenos " " page_line
+          buf_offsets = buf_offsets " " pos
           buf_fresh = 1
         }
       }
@@ -229,7 +237,8 @@ ingo_chunk_txt() {
         flush_buf(pos + length(line))
         prev_buf = buf
         prev_linenos = buf_linenos
-        retain_overlap_tail(pos + length(line))
+        prev_offsets = buf_offsets
+        retain_overlap_tail()
       }
 
       pos += length(line) + 1

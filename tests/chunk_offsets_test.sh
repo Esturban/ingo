@@ -133,6 +133,37 @@ test_no_overlap_only_duplicate_chunks() {
   assert_eq "$(jq -r 'select(.text=="linea dos del parrafo")' "$tmp/out.jsonl" | wc -l | tr -d ' ')" "0" "overlap tail alone must not be emitted"
 }
 
+# Every chunk's flat start must locate its own first bytes in the file
+# (byte offsets, 1-indexed), including after form feeds and blank lines.
+assert_flat_offsets_locate_text() {
+  local txt="$1" out="$2" start text got
+  while IFS=$'\t' read -r start text; do
+    got="$(LC_ALL=C tail -c +"$start" "$txt" | head -c "${#text}")"
+    assert_eq "$got" "$text" "chunk start=$start must locate its first bytes"
+  done < <(jq -r '[.start, (.text | split("\n")[0])] | @tsv' "$out")
+}
+
+test_flat_offsets_count_form_feeds() {
+  local tmp
+  tmp="$(mktemp -d)"
+  printf 'abc\n\fdef\n' > "$tmp/doc.txt"
+  ingo_chunk_txt "$tmp/doc.txt" "$tmp/out.jsonl" 1400 0
+  assert_eq "$(jq -r 'select(.text=="def") | .start' "$tmp/out.jsonl")" "6" "def begins at byte 6 after a form feed"
+  assert_flat_offsets_locate_text "$tmp/doc.txt" "$tmp/out.jsonl"
+}
+
+test_retained_tail_start_locates_tail_text() {
+  local tmp
+  tmp="$(mktemp -d)"
+  printf 'l1 aaa\nl2 bbb\n\nnext paragraph\n' > "$tmp/doc.txt"
+  ingo_chunk_txt "$tmp/doc.txt" "$tmp/out.jsonl" 1400 3
+  assert_eq "$(jq -r 'select(.text|startswith("l2 bbb")) | .start' "$tmp/out.jsonl")" "8" "retained tail starts at its own line"
+  assert_flat_offsets_locate_text "$tmp/doc.txt" "$tmp/out.jsonl"
+  printf 'one line here\ntwo line here\nthree line here\n\nfour\n' > "$tmp/doc2.txt"
+  ingo_chunk_txt "$tmp/doc2.txt" "$tmp/out2.jsonl" 30 8
+  assert_flat_offsets_locate_text "$tmp/doc2.txt" "$tmp/out2.jsonl"
+}
+
 test_ocr_fallback_separates_pages_with_form_feed() {
   local tmp bin
   tmp="$(mktemp -d)"
@@ -157,6 +188,8 @@ main() {
   test_new_section_clears_article_markers
   test_no_overlap_only_duplicate_chunks
   test_ocr_fallback_separates_pages_with_form_feed
+  test_flat_offsets_count_form_feeds
+  test_retained_tail_start_locates_tail_text
   echo "ok"
 }
 
