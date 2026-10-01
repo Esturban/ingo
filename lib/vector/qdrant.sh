@@ -96,8 +96,14 @@ ingo_vector_qdrant_build_payload_fields() {
     '
     {
       source: .source,
+      page: .page,
+      paragraph: .paragraph,
+      line_start: .line_start,
+      line_end: .line_end,
       section: .section,
       article: .article,
+      paragraph_marker: .paragraph_marker,
+      numeral_marker: .numeral_marker,
       start: .start,
       end: .end,
       text: (.text | tostring | .[0:2000]),
@@ -249,6 +255,11 @@ ingo_vector_qdrant_query_text() {
           section: (.payload.section // ""),
           article: (.payload.article // ""),
           page: (.payload.page // null),
+          paragraph: (.payload.paragraph // null),
+          line_start: (.payload.line_start // null),
+          line_end: (.payload.line_end // null),
+          paragraph_marker: (.payload.paragraph_marker // ""),
+          numeral_marker: (.payload.numeral_marker // ""),
           date_indexed: (.payload.date_indexed // "")
         })
       )
@@ -346,6 +357,11 @@ ingo_vector_qdrant_query_vector() {
           section: (.payload.section // ""),
           article: (.payload.article // ""),
           page: (.payload.page // null),
+          paragraph: (.payload.paragraph // null),
+          line_start: (.payload.line_start // null),
+          line_end: (.payload.line_end // null),
+          paragraph_marker: (.payload.paragraph_marker // ""),
+          numeral_marker: (.payload.numeral_marker // ""),
           date_indexed: (.payload.date_indexed // "")
         })
       )
