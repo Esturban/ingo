@@ -329,3 +329,4 @@ Key coverage areas:
 See [IMPROVEMENTS.md](IMPROVEMENTS.md) for ongoing improvement notes.
 See [docs/corpus-fetch-workflow.md](docs/corpus-fetch-workflow.md) for the crawl-enabled fetch workflow.
 See [docs/document-only-crawl.md](docs/document-only-crawl.md) for document-only vector-ready crawl behavior.
+See [specs/](specs/) for design specs.
