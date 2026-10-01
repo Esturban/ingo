@@ -74,7 +74,7 @@ ingo_http_curl() {
   done
 
   if printf "%s" "$CAPTURED_URL" | grep -F "/points/query" >/dev/null; then
-    printf '{"result":{"points":[{"id":42,"score":0.75,"payload":{"text":"ok","source":"src","section":"sec","article":"art","date_indexed":"today"}}]}}\n200\n'
+    printf '{"result":{"points":[{"id":42,"score":0.75,"payload":{"text":"ok","source":"src","section":"sec","article":"art","page":4,"paragraph":2,"line_start":10,"line_end":12,"paragraph_marker":"PARAGRAFO 1","numeral_marker":"1.","date_indexed":"today"}}]}}\n200\n'
     return 0
   fi
 
@@ -96,6 +96,14 @@ test_qdrant_query_normalizes_contract() {
   assert_contains "$(cat "$CAPTURED_FILE")" "HEADER=api-key: secret" "qdrant query forwards api-key header when token is set"
   assert_eq "$(printf "%s" "$json" | jq -r '.match_count')" "1" "qdrant query normalizes match_count"
   assert_eq "$(printf "%s" "$json" | jq -r '.matches[0].text')" "ok" "qdrant query normalizes payload text"
+  assert_eq "$(printf "%s" "$json" | jq -c '.matches[0] | [.page,.paragraph,.line_start,.line_end,.paragraph_marker,.numeral_marker]')" '[4,2,10,12,"PARAGRAFO 1","1."]' "qdrant query keeps citation fields"
+}
+
+test_qdrant_payload_keeps_citation_fields() {
+  local line payload
+  line='{"id":"a","source":"s","page":4,"paragraph":2,"line_start":10,"line_end":12,"section":"S","article":"A","paragraph_marker":"PARAGRAFO 1","numeral_marker":"1.","start":1,"end":9,"text":"t"}'
+  payload="$(ingo_vector_qdrant_build_payload_fields "$line" "")"
+  assert_eq "$(printf "%s" "$payload" | jq -c '[.page,.paragraph,.line_start,.line_end,.paragraph_marker,.numeral_marker]')" '[4,2,10,12,"PARAGRAFO 1","1."]' "qdrant upsert payload keeps citation fields"
 }
 
 test_qdrant_embed_uses_inference_payload() {
@@ -192,6 +200,7 @@ test_qdrant_external_query_passes_vector() {
 
 main() {
   test_qdrant_query_normalizes_contract
+  test_qdrant_payload_keeps_citation_fields
   test_qdrant_embed_uses_inference_payload
   test_qdrant_external_embed_passes_vector
   test_qdrant_external_query_passes_vector

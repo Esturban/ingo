@@ -100,8 +100,14 @@ ingo_vector_pinecone_build_upsert_record() {
       _id: .id,
       ($text_field): .text,
       source: .source,
+      page: .page,
+      paragraph: .paragraph,
+      line_start: .line_start,
+      line_end: .line_end,
       section: .section,
       article: .article,
+      paragraph_marker: .paragraph_marker,
+      numeral_marker: .numeral_marker,
       start: .start,
       end: .end,
       date_indexed: (now | todate),
@@ -191,7 +197,11 @@ ingo_vector_pinecone_upsert_vector_jsonl() {
         id: .id,
         values: (.vector // []),
         metadata: (
-          {($text_field): .text, source: .source, section: .section, article: .article}
+          {
+            ($text_field): .text, source: .source, section: .section, article: .article,
+            page: .page, paragraph: .paragraph, line_start: .line_start, line_end: .line_end,
+            paragraph_marker: .paragraph_marker, numeral_marker: .numeral_marker
+          }
           | with_entries(select(.value != null and .value != ""))
         )
       }' >> "$tmp_records"
@@ -264,8 +274,14 @@ ingo_vector_pinecone_query_vector() {
           score: (.score // 0),
           text: (.metadata[$text_field] // .metadata.text // ""),
           source: (.metadata.source // ""),
+          page: (.metadata.page // null),
+          paragraph: (.metadata.paragraph // null),
+          line_start: (.metadata.line_start // null),
+          line_end: (.metadata.line_end // null),
           section: (.metadata.section // ""),
-          article: (.metadata.article // "")
+          article: (.metadata.article // ""),
+          paragraph_marker: (.metadata.paragraph_marker // ""),
+          numeral_marker: (.metadata.numeral_marker // "")
         })
       )
     }'
@@ -288,7 +304,7 @@ ingo_vector_pinecone_query_text() {
         inputs: {text: $question},
         top_k: $top_k
       },
-      fields: [$text_field, "source", "section", "article", "page", "date_indexed"]
+      fields: [$text_field, "source", "section", "article", "page", "paragraph", "line_start", "line_end", "paragraph_marker", "numeral_marker", "date_indexed"]
     }')"
 
   response="$(ingo_http_curl -sS -w "\n%{http_code}" \
@@ -317,9 +333,14 @@ ingo_vector_pinecone_query_text() {
           score: (._score // .score // 0),
           text: (.fields[$text_field] // .fields.text // .fields.data // ""),
           source: (.fields.source // ""),
+          page: (.fields.page // null),
+          paragraph: (.fields.paragraph // null),
+          line_start: (.fields.line_start // null),
+          line_end: (.fields.line_end // null),
           section: (.fields.section // ""),
           article: (.fields.article // ""),
-          page: (.fields.page // null),
+          paragraph_marker: (.fields.paragraph_marker // ""),
+          numeral_marker: (.fields.numeral_marker // ""),
           date_indexed: (.fields.date_indexed // "")
         })
       )

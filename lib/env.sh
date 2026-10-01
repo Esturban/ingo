@@ -46,6 +46,27 @@ ingo_load_env() {
   : "${INGO_RELEVANCE_MODE:=strict}"
   : "${INGO_MIN_TERM_MATCHES:=2}"
   : "${INGO_REJECTED_DIR:=data/rejected}"
+
+  # DEV-6550: a jurisdiction profile (see profiles/*.sh) fills in the
+  # citation-unit patterns and relevance vocabulary for one legal system
+  # (Colombia: ANLA/IGAC/MADS/CAR) without a seat needing its own tool.
+  # It only sets values that are still unset (":=" semantics inside the
+  # profile file itself), so a runtime/.env override always wins, and it
+  # must run before the generic fallback defaults below so the profile's
+  # values -- not the plain generic ones -- are what those defaults yield.
+  : "${INGO_JURISDICTION:=generic}"
+  if declare -F ingo_apply_jurisdiction_profile >/dev/null 2>&1; then
+    ingo_apply_jurisdiction_profile "$INGO_JURISDICTION"
+  fi
+
+  # Article/paragrafo/numeral detection needs both the plain and the
+  # accented spelling: LC_ALL=C tolower() cannot fold multi-byte UTF-8
+  # accented capitals, so an all-caps heading like "ARTÍCULO" or "CAPÍTULO"
+  # would otherwise never match a lowercase-only pattern.
+  : "${INGO_SECTION_PATTERN:=^[[:space:]]*(seccion|sección|capitulo|capítulo|titulo|título)[[:space:]]+}"
+  : "${INGO_ARTICLE_PATTERN:=^[[:space:]]*(articulo|artículo)[[:space:]]+[0-9][0-9a-z°.-]*}"
+  : "${INGO_PARAGRAPH_PATTERN:=}"
+  : "${INGO_NUMERAL_PATTERN:=}"
   : "${INGO_RELEVANCE_TERMS:=ambiental,licencia,vertimiento,emision,resolucion,decreto,articulo,autoridad,ministerio,agua,suelo,aire}"
   : "${INGO_CORPUS_DIR:=data/corpus}"
   : "${INGO_CRAWL_DEPTH:=2}"

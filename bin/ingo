@@ -4,6 +4,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# shellcheck source=../lib/jurisdiction.sh
+# shellcheck disable=SC1091
+source "$ROOT_DIR/lib/jurisdiction.sh"
 # shellcheck source=../lib/env.sh
 # shellcheck disable=SC1091
 source "$ROOT_DIR/lib/env.sh"

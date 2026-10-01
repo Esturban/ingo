@@ -93,8 +93,14 @@ ingo_vector_upstash_build_upsert_payload() {
         {
           text: (.text | tostring | .[0:2000]),
           source: .source,
+          page: .page,
+          paragraph: .paragraph,
+          line_start: .line_start,
+          line_end: .line_end,
           section: .section,
           article: .article,
+          paragraph_marker: .paragraph_marker,
+          numeral_marker: .numeral_marker,
           start: .start,
           end: .end,
           date_indexed: (now | todate),
@@ -206,9 +212,14 @@ ingo_vector_upstash_query_text() {
           score: (.score // 0),
           text: (.metadata.text // (if ((.data // null) | type) == "string" then .data else "" end)),
           source: (.metadata.source // ""),
+          page: (.metadata.page // null),
+          paragraph: (.metadata.paragraph // null),
+          line_start: (.metadata.line_start // null),
+          line_end: (.metadata.line_end // null),
           section: (.metadata.section // ""),
           article: (.metadata.article // ""),
-          page: (.metadata.page // null),
+          paragraph_marker: (.metadata.paragraph_marker // ""),
+          numeral_marker: (.metadata.numeral_marker // ""),
           date_indexed: (.metadata.date_indexed // "")
         })
       )
