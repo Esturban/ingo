@@ -1,0 +1,120 @@
+name: Land PR
+
+# Lands the open dev -> trunk PR once ALL of these hold:
+#   1. every check on the PR head is green (none pending, none failed, at least one);
+#   2. the LATEST review by the repo owner (OWNER below) is APPROVED and was made on the
+#      PR's CURRENT head sha;
+#   3. no newer CHANGES_REQUESTED by the owner (covered by "latest review decides";
+#      COMMENTED reviews are ignored, a DISMISSED review is no approval).
+# The owner's own approval is the review branch protection asks for, so this workflow
+# never approves anything and never posts a review. It then merges with a merge commit
+# (the same as a manual land), pinned to the head sha it judged (--match-head-commit),
+# so a push between judgement and merge aborts the land. Never --admin, never deletes
+# `dev`, never touches branch protection.
+#
+# Triggers: the owner submitting a review, and any "CI" run finishing (so an approval
+# given while checks were still running lands when they turn green).
+#
+# Install: copy to .github/workflows/landpr.yml next to dev-to-trunk.yml and set the
+# `workflows:` list to the repo's check workflow name(s). The review trigger runs from
+# the workflow file on the PR's merge ref, so installing it on `dev` is live for that
+# PR at once; workflow_run only fires from the default branch, so it starts working
+# after the first land.
+#
+# KNOWN LIMIT: a merge made with GITHUB_TOKEN does not trigger `on: push` workflows
+# (e.g. a Release workflow on the trunk). Accepted; revisit if a Release needs it.
+
+on:
+  pull_request_review:
+    types: [submitted]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  statuses: read
+
+# One land attempt at a time; a newer trigger waits rather than cancelling a merge.
+concurrency:
+  group: landpr
+  cancel-in-progress: false
+
+jobs:
+  landpr:
+    # Review trigger: only reviews on the dev -> trunk PR.
+    if: >-
+      github.event_name != 'pull_request_review' ||
+      (github.event.pull_request.head.ref == 'dev' &&
+       github.event.pull_request.base.ref == github.event.repository.default_branch)
+    name: landpr
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TRUNK: ${{ github.event.repository.default_branch }}
+    steps:
+      # No checkout: this job never runs PR code, it only reads PR metadata.
+      - name: Judge and land
+        run: |
+          set -euo pipefail
+
+          # Hardcoded, same reason as dev-to-trunk-auto-pr.yml: the repo owner
+          # variable is an org name on org-owned repos.
+          OWNER="Esturban"
+          SELF="landpr"   # this job's own check name; it is running, so never counts
+
+          # Decision logic. Input: {pr: {...gh pr view json}, reviews: [...REST reviews]}.
+          # Output: "land" or "held: <reason>". Extracted verbatim by tests/landpr-test.sh.
+          read -r -d '' DECIDE <<'JQ' || true
+          .pr as $pr | .reviews as $reviews
+          | ([ $reviews[]
+               | select(.user.login == $owner
+                        and (.state | IN("APPROVED", "CHANGES_REQUESTED", "DISMISSED")))
+             ] | sort_by(.submitted_at, .id) | last) as $latest
+          | ( [ $pr.statusCheckRollup[]?
+                | select((.name // .context) != $self)
+                | select(
+                    (.__typename == "CheckRun"
+                      and ((.status != "COMPLETED")
+                           or ((.conclusion // "") | IN("SUCCESS", "NEUTRAL", "SKIPPED") | not)))
+                    or (.__typename == "StatusContext" and (.state != "SUCCESS")))
+                | (.name // .context) ] | join(", ")) as $bad
+          | ([ $pr.statusCheckRollup[]? | select((.name // .context) != $self) ] | length) as $nchecks
+          | if $pr.isDraft then "held: PR is a draft"
+            elif $pr.isCrossRepository then "held: PR is from a fork"
+            elif $pr.mergeable == "CONFLICTING" then "held: PR has merge conflicts"
+            elif $nchecks == 0 then "held: no checks reported"
+            elif $bad != "" then "held: checks not green: " + $bad
+            elif $latest == null then "held: no approving review on head"
+            elif $latest.state == "CHANGES_REQUESTED" then "held: latest review by owner requests changes"
+            elif $latest.state == "DISMISSED" then "held: no approving review on head (latest review dismissed)"
+            elif $latest.commit_id != $pr.headRefOid
+              then "held: no approving review on head (approval is for " + $latest.commit_id[0:7] + ")"
+            else "land" end
+          JQ
+
+          # Always resolve the one open dev -> trunk PR, whatever fired us.
+          NUM="$(gh pr list --head dev --base "${TRUNK}" --state open --json number --jq '.[0].number // empty')"
+          if [ -z "${NUM}" ]; then
+            echo "No open dev -> ${TRUNK} PR; nothing to land."
+            exit 0
+          fi
+
+          PR="$(gh pr view "${NUM}" --json headRefOid,isDraft,isCrossRepository,mergeable,statusCheckRollup)"
+          HEAD_SHA="$(jq -r .headRefOid <<<"${PR}")"
+          REVIEWS="$(gh api --paginate "repos/${GH_REPO}/pulls/${NUM}/reviews" | jq -s 'add // []')"
+          echo "PR #${NUM} head ${HEAD_SHA}"
+
+          DECISION="$(jq -n -r --arg owner "${OWNER}" --arg self "${SELF}" \
+            --argjson pr "${PR}" --argjson reviews "${REVIEWS}" \
+            "{pr: \$pr, reviews: \$reviews} | ${DECIDE}")"
+          echo "${DECISION}"
+          [ "${DECISION}" = "land" ] || exit 0
+
+          # Land like a manual land: merge commit, branch kept, no --admin.
+          gh pr merge "${NUM}" --merge --match-head-commit "${HEAD_SHA}"
+          echo "Landed PR #${NUM} at ${HEAD_SHA}."
